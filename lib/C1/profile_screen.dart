@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'profile_edit_screen.dart'; // さっき作った画面をインポート
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -46,7 +47,14 @@ class ProfileScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: OutlinedButton(
-              onPressed: () => print("プロフィール編集ボタンが押されました"),
+              onPressed: (){
+              // Navigator.push を使うことで、新しい画面へ進む（遷移する）ことができます！
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileEditScreen(), // さっき作った画面の名前
+        ),
+      );
+              },
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: Colors.grey[300]!),
                 minimumSize: const Size(double.infinity, 40),
