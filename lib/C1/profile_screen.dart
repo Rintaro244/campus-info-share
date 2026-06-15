@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'profile_edit_screen.dart'; // さっき作った画面をインポート
 
-class ProfileScreen extends StatelessWidget {
+// 💡 動かすために StatelessWidget から StatefulWidget に変更しました！
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    // 💡 ステップ2：ここに「仮の投稿データ（ダミーデータ）」を用意します
-    final List<Map<String, String>> dummyPosts = [
-      {'title': '【譲ります】基本情報技術者試験の参考書', 'date': '2026/06/12', 'category': '教材'},
-      {'title': 'テニスサークル 今週の練習はお休みです 🎾', 'date': '2026/06/10', 'category': 'サークル'},
-      {'title': '【求む】2年の情報数学演習の過去問持ってる人いませんか', 'date': '2026/06/08', 'category': '過去問'},
-      {'title': '大宮キャンパス周辺のおすすめラーメン屋まとめ 🍜', 'date': '2026/06/05', 'category': '周辺情報'},
-    ];
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
 
+class _ProfileScreenState extends State<ProfileScreen> {
+  // 💡 リストをState（状態）として管理することで、中身を削除できるようになります
+  final List<Map<String, String>> dummyPosts = [
+    {'title': '【譲ります】基本情報技術者試験の参考書', 'date': '2026/06/12', 'category': '教材'},
+    {'title': 'テニスサークル 今週の練習はお休みです 🎾', 'date': '2026/06/10', 'category': 'サークル'},
+    {'title': '【求む】2年の情報数学演習の過去問持ってる人いませんか', 'date': '2026/06/08', 'category': '過去問'},
+    {'title': '大宮キャンパス周辺のおすすめラーメン屋まとめ 🍜', 'date': '2026/06/05', 'category': '周辺情報'},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -47,13 +53,12 @@ class ProfileScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: OutlinedButton(
-              onPressed: (){
-              // Navigator.push を使うことで、新しい画面へ進む（遷移する）ことができます！
+              onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => const ProfileEditScreen(), // さっき作った画面の名前
-        ),
-      );
+                    builder: (context) => const ProfileEditScreen(),
+                  ),
+                );
               },
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: Colors.grey[300]!),
@@ -69,7 +74,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 24),
           Divider(thickness: 1, color: Colors.grey[200], height: 1),
           
-          // ⑤ 過去の投稿一覧エリア（アップデート！）
+          // ⑤ 過去の投稿一覧エリア
           Expanded(
             child: Container(
               color: Colors.grey[50],
@@ -91,119 +96,124 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   
-                  // 実際のリストを表示するウィジェット
+                  // 💡 リストの表示部分（0件の時はエラーメッセージを表示する設計書仕様）
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: dummyPosts.length, // リストの件数
-                      itemBuilder: (context, index) {
-                        final post = dummyPosts[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            side: BorderSide(color: Colors.grey[200]!),
-                            borderRadius: BorderRadius.circular(8),
+                    child: dummyPosts.isEmpty
+                        ? const Center(
+                            child: Text(
+                              '過去の投稿はありません', // 内部設計書の指定メッセージ
+                              style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w500),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: dummyPosts.length,
+                            itemBuilder: (context, index) {
+                              final post = dummyPosts[index];
+                              return Card(
+                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  side: BorderSide(color: Colors.grey[200]!),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: ListTile(
+                                  leading: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue[50],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      post['category']!,
+                                      style: TextStyle(color: Colors.blue[700], fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    post['title']!,
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    post['date']!,
+                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                  trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                                  onTap: () {
+                                    // 投稿がタップされたら詳細ダイアログを表示
+                                    showDialog(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        return AlertDialog(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          title: Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue[50],
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  post['category']!,
+                                                  style: TextStyle(color: Colors.blue[700], fontSize: 12, fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              const Text('投稿の詳細', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                            ],
+                                          ),
+                                          content: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                post['title']!,
+                                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                '投稿日: ${post['date']!}',
+                                                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                                              ),
+                                              const SizedBox(height: 16),
+                                              const Text(
+                                                '※ここに投稿の本文の全体像が詳しく表示されます。設計書に合わせてテキストの量や見た目を調整していきます。',
+                                                style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.4),
+                                              ),
+                                            ],
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.of(context).pop(),
+                                              child: const Text('閉じる', style: TextStyle(color: Colors.grey)),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {
+                                                // 💡 ここがポイント！setStateを使って画面をリアルタイムに書き換えます
+                                                setState(() {
+                                                  dummyPosts.removeAt(index); // リストからこの投稿を消し去る
+                                                });
+                                                
+                                                Navigator.of(context).pop(); // ダイアログを閉じる
+                                                
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('「${post['title']}」を削除しました（擬似処理）')),
+                                                );
+                                              },
+                                              child: const Text('削除する', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                              );
+                            },
                           ),
-                          child: ListTile(
-                            leading: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.blue[50],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                post['category']!,
-                                style: TextStyle(color: Colors.blue[700], fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            title: Text(
-                              post['title']!,
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis, // 長い文字は「...」にする
-                            ),
-                            subtitle: Text(
-                              post['date']!,
-                              style: const TextStyle(fontSize: 11, color: Colors.grey),
-                            ),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-                            onTap: () {
-  // 💡 投稿がタップされたら、詳細ポップアップ（ダイアログ）を表示する
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16), // 角丸デザイン
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                post['category']!,
-                style: TextStyle(color: Colors.blue[700], fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text('投稿の詳細', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min, // 中身のサイズに合わせる
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              post['title']!,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '投稿日: ${post['date']!}',
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              '※ここに投稿の本文の全体像が詳しく表示されます。設計書に合わせてテキストの量や見た目を調整していきます。',
-              style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.4),
-            ),
-          ],
-        ),
-        actions: [
-          // ① 閉じるボタン
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(), // ダイアログを閉じる
-            child: const Text('閉じる', style: TextStyle(color: Colors.grey)),
-          ),
-          
-          // ② 削除ボタン（赤色で強調）
-          TextButton(
-            onPressed: () {
-              // TODO: 後でここにC3モジュールの「削除関数」を呼び出す処理を書く
-              print('${post['title']} の削除ボタンが押されました。本来はここでDBから消します。');
-              
-              Navigator.of(context).pop(); // ダイアログを閉じる
-              
-              // 削除完了を知らせるスマホ特有のふわっとした通知（スナックバー）
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('「${post['title']}」を削除しました（擬似処理）')),
-              );
-            },
-            child: const Text('削除する', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      );
-    },
-  );
-},
-                          ),
-                        );
-                      },
-                    ),
                   ),
                 ],
               ),
@@ -211,8 +221,33 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
+      // 💡 ログアウトボタンも設計書に合わせて確認ダイアログが出るように変更しました！
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => print("ログアウトボタンが押されました"),
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('ログアウト'),
+              content: const Text('本当にログアウトしますか？'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('キャンセル'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    print("ログアウトしました");
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('ログアウトしました')),
+                    );
+                  },
+                  child: const Text('ログアウト', style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            ),
+          );
+        },
         backgroundColor: Colors.red[400],
         elevation: 4,
         icon: const Icon(Icons.logout, color: Colors.white),
