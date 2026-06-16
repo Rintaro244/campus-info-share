@@ -90,6 +90,11 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
       );
       _commentController.clear();
       setState(() => _reviews.insert(0, review));
+    } on ValidationException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } on NetworkException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
