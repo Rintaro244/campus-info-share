@@ -27,8 +27,7 @@ class _CircleSearchScreenState extends State<CircleSearchScreen> {
   List<Map<String, String>> get _filteredCircles {
     return _allCircles.where((circle) {
       // ① キーワード絞り込み
-      final matchKeyword = circle['name']!.contains(_searchKeyword) || 
-                           circle['desc']!.contains(_searchKeyword);
+      final matchKeyword = circle['name']!.contains(_searchKeyword);
       
       // ② キャンパス絞り込み (外部変数 c_session_campus 等を意識)
       final matchCampus = _selectedCampus == 'すべて' || 

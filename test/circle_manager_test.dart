@@ -126,9 +126,9 @@ void main() {
         expect(results.first.name, contains('鉄道'));
       });
 
-      test('【キーワード紹介文に一致】紹介文に含まれるキーワードで検索できること', () async {
+      test('【キーワード名前に部分一致】サークル名の一部（後ろの文字など）で検索できること', () async {
         final results = await circleManager.searchCircles(
-          keyword: 'アプリ',
+          keyword: 'C3',
           campus: 'すべて',
           category: 'すべて',
         );

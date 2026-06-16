@@ -73,8 +73,7 @@ class CircleManager {
     // 内部設計書の絞り込みロジックを再現
     return _mockDatabase.where((circle) {
       final matchKeyword = keyword.isEmpty || 
-                           circle.name.contains(keyword) || 
-                           circle.description.contains(keyword);
+                           circle.name.contains(keyword);
       
       final matchCampus = campus == 'すべて' || 
                           circle.campus == campus || 
