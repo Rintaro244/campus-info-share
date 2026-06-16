@@ -9,6 +9,16 @@ class CircleManager {
     CircleModel(id: '3', name: 'プログラミングサークルC3', campus: '両方', category: '文化系', description: 'アプリやゲームを楽しく開発しています。'),
   ];
 
+  // 💡 テスト用にデータベースを初期状態（3件）にリセットする関数
+  static void resetForTest() {
+    _mockDatabase.clear();
+    _mockDatabase.addAll([
+      CircleModel(id: '1', name: '芝浦工大公式鉄道研究会', campus: '豊洲', category: '文化系', description: '模型の展示や合宿を行っています！'),
+      CircleModel(id: '2', name: '硬式庭球部（テニス）', campus: '大宮', category: '運動系', description: '初心者から経験者まで大歓迎です！🎾'),
+      CircleModel(id: '3', name: 'プログラミングサークルC3', campus: '両方', category: '文化系', description: 'アプリやゲームを楽しく開発しています。'),
+    ]);
+  }
+
   // 📝 1. サークル情報を登録する関数 (UC08 サークル・部活動情報投稿)
   Future<bool> registerCircle({
     required String name,

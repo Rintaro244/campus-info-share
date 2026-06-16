@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'profile_validator.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({Key? key}) : super(key: key);
@@ -124,7 +125,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   final text = _nameController.text.trim();
                   
                   // 💡 改善点：E2 ユーザー名未入力・不正形式のバリデーション
-                  if (text.isEmpty || text.length > 20) {
+                  if (!ProfileValidator.validateUserName(text)) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('ユーザ名を正しく入力してください。(例:1文字以上20文字以内等)'), // 設計書の指定文言
