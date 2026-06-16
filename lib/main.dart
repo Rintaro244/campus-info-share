@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'past_exam_screen.dart';
-
 void main() {
   runApp(const MyApp());
 }

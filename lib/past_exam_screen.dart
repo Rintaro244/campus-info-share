@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// 既存のファイルをインポート
 import 'past_exam.dart';
 import 'past_data.dart';
 
@@ -11,20 +10,29 @@ class PastExamListScreen extends StatefulWidget {
 }
 
 class _PastExamListScreenState extends State<PastExamListScreen> {
-  // 💡 参考UIを踏襲: テストロボットがスナックバーを100%見つけられるようにするための魔法のキー
   final GlobalKey<ScaffoldMessengerState> _messengerKey = GlobalKey<ScaffoldMessengerState>();
-
   final TextEditingController _searchController = TextEditingController();
+  
   String _selectedYear = 'すべて';
+  
+  // 💡 追加: ドロップダウンの選択肢を保持するリスト
+  final List<String> _yearOptions = ['すべて'];
 
-  // フィルタリングされた過去問リストを保持する変数
   List<PastExam> _filteredExams = [];
 
   @override
   void initState() {
     super.initState();
-    // 初期状態は past_data.dart の pastExams を全件表示
     _filteredExams = List.from(pastExams);
+
+    // 💡 追加: データから重複のない年度を抽出し、降順にソートしてリストに追加
+    final years = pastExams
+        .map((exam) => exam.year.toString())
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
+    
+    _yearOptions.addAll(years);
   }
 
   @override
@@ -33,18 +41,15 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
     super.dispose();
   }
 
-  // 💡 検索 & フィルタリングのロジック
   void _filterExams() {
     final query = _searchController.text.trim().toLowerCase();
 
     setState(() {
       _filteredExams = pastExams.where((exam) {
-        // キーワード検索（タイトル、科目名、教授名から部分一致）
         final matchesQuery = exam.title.toLowerCase().contains(query) ||
             exam.subjectName.toLowerCase().contains(query) ||
             exam.professorName.toLowerCase().contains(query);
 
-        // 年度でのフィルタリング
         final matchesYear = _selectedYear == 'すべて' || exam.year.toString() == _selectedYear;
 
         return matchesQuery && matchesYear;
@@ -52,9 +57,7 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
     });
   }
 
-  // リストタップ時の処理
   void _onExamTap(PastExam exam) {
-    // 既存のスナックバーがあれば消してから新しく出す
     _messengerKey.currentState?.removeCurrentSnackBar();
     _messengerKey.currentState?.showSnackBar(
       SnackBar(
@@ -66,7 +69,6 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 💡 参考UIを踏襲: 画面の一番外側を ScaffoldMessenger で包み、キーをセットします
     return ScaffoldMessenger(
       key: _messengerKey,
       child: Scaffold(
@@ -84,7 +86,6 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔍 検索・フィルタリングセクション
             Padding(
               padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 16.0, bottom: 8.0),
               child: Column(
@@ -94,7 +95,7 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: _searchController,
-                    onChanged: (_) => _filterExams(), // 文字が入力されるたびにリアルタイム検索
+                    onChanged: (_) => _filterExams(),
                     decoration: InputDecoration(
                       hintText: '例: 基礎数学、田中教授、期末試験',
                       prefixIcon: const Icon(Icons.search, color: Colors.grey),
@@ -120,7 +121,8 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: _selectedYear,
-                    items: ['すべて', '2024', '2023'].map((year) {
+                    // 💡 変更: 生成したリストを使う
+                    items: _yearOptions.map((year) {
                       return DropdownMenuItem(
                         value: year,
                         child: Text(year == 'すべて' ? 'すべての年度' : '$year年度'),
@@ -148,7 +150,6 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
               child: Divider(height: 32, thickness: 1, color: Colors.black12),
             ),
 
-            // 📊 検索結果の件数表示
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
               child: Text(
@@ -157,7 +158,6 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
               ),
             ),
 
-            // 📜 過去問カードリストセクション
             Expanded(
               child: _filteredExams.isEmpty
                   ? const Center(
@@ -172,12 +172,12 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
                       itemBuilder: (context, index) {
                         final exam = _filteredExams[index];
                         return Padding(
-                          padding: const EdgeInsets.bottom(16.0),
+                          padding: const EdgeInsets.only(bottom: 16.0),
                           child: InkWell(
                             onTap: () => _onExamTap(exam),
                             borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              width: double.infinity,
+                            // 💡 変更: Container を Ink にして波紋エフェクトを見えるように
+                            child: Ink(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: Colors.white,
@@ -187,7 +187,6 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // 年度のタグ（青アクセント）
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
@@ -200,13 +199,11 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 10),
-                                  // 試験タイトル
                                   Text(
                                     exam.title,
                                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
                                   ),
                                   const SizedBox(height: 12),
-                                  // 科目名 & 教授名
                                   Row(
                                     children: [
                                       Icon(Icons.menu_book_rounded, size: 16, color: Colors.grey[500]),
