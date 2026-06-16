@@ -1,24 +1,17 @@
-import 'dart:io';
-import 'package:characters/characters.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../models/spot.dart';
 import '../models/spot_review.dart';
 import '../shared/exceptions.dart';
-import 'storage_repository.dart';
 
 class PostRepository {
   final FirebaseFirestore _firestore;
-  final StorageRepository _storageRepository;
 
   static const String _spotsCollection = 'spots';
   static const String _reviewsCollection = 'reviews';
 
-  PostRepository({
-    FirebaseFirestore? firestore,
-    StorageRepository? storageRepository,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _storageRepository = storageRepository ?? StorageRepository();
+  PostRepository({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   // ── スポット ─────────────────────────────────────────
 
@@ -50,8 +43,9 @@ class PostRepository {
     }
   }
 
-  /// スポットを新規投稿する。画像ファイルが渡された場合はアップロードも行う。
+  /// スポットを Firestore に保存する。
   Future<Spot> createSpot({
+    required String spotId,
     required String spotName,
     required Campus campus,
     required String category,
@@ -59,19 +53,8 @@ class PostRepository {
     String? description,
     double? latitude,
     double? longitude,
-    List<File> imageFiles = const [],
+    List<String> imageUrls = const [],
   }) async {
-    _validateSpotName(spotName);
-
-    final spotId = const Uuid().v4();
-    List<String> imageUrls = [];
-
-    if (imageFiles.isNotEmpty) {
-      imageUrls = await Future.wait(
-        imageFiles.map((f) => _storageRepository.uploadSpotImage(f, spotId)),
-      );
-    }
-
     final data = {
       'spotName': spotName,
       'campus': campus.label,
@@ -103,16 +86,10 @@ class PostRepository {
     }
   }
 
-  /// スポットを削除する。投稿者本人のみ許可。
-  Future<void> deleteSpot(String spotId, String requestingUid) async {
-    final spot = await getSpotById(spotId);
-    if (spot.authorUid != requestingUid) throw PermissionDeniedException();
-
+  /// Firestore のスポットドキュメントを削除する。
+  Future<void> deleteSpot(String spotId) async {
     try {
-      await Future.wait([
-        _firestore.collection(_spotsCollection).doc(spotId).delete(),
-        _storageRepository.deleteSpotImages(spotId),
-      ]);
+      await _firestore.collection(_spotsCollection).doc(spotId).delete();
     } on FirebaseException catch (e) {
       throw NetworkException(e.message ?? '通信環境を確認してください');
     }
@@ -135,23 +112,13 @@ class PostRepository {
     }
   }
 
-  /// レビューを投稿する。
+  /// レビューを投稿する。平均評価・件数の更新をトランザクションで行う。
   Future<SpotReview> addReview({
     required String spotId,
     required int starRating,
     required String comment,
     required String authorUid,
   }) async {
-    if (starRating < 1 || starRating > 5) {
-      throw ValidationException('星評価は1〜5で指定してください');
-    }
-    if (comment.isEmpty) {
-      throw ValidationException('コメントを入力してください');
-    }
-    if (comment.characters.length > 512) {
-      throw ValidationException('コメントは512文字以内で入力してください');
-    }
-
     final reviewId = const Uuid().v4();
     final spotRef = _firestore.collection(_spotsCollection).doc(spotId);
     final reviewRef =
@@ -244,10 +211,5 @@ class PostRepository {
       'spotId': spotId,
       'createdAt': (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     }, doc.id);
-  }
-
-  void _validateSpotName(String name) {
-    if (name.isEmpty) throw ValidationException('スポット名を入力してください');
-    if (name.length > 50) throw ValidationException('スポット名は50文字以内で入力してください');
   }
 }

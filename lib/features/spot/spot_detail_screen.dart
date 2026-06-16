@@ -4,7 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/spot.dart';
 import '../../models/spot_review.dart';
-import '../../repositories/post_repository.dart';
+import '../../services/spot_service.dart';
 import '../../shared/exceptions.dart';
 
 class SpotDetailScreen extends StatefulWidget {
@@ -16,7 +16,7 @@ class SpotDetailScreen extends StatefulWidget {
 }
 
 class _SpotDetailScreenState extends State<SpotDetailScreen> {
-  final _repository = PostRepository();
+  final _service = SpotService();
   final _commentController = TextEditingController();
   late Spot _spot;
   List<SpotReview> _reviews = [];
@@ -44,7 +44,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
   Future<void> _loadSpot() async {
     setState(() => _spotError = null);
     try {
-      final spot = await _repository.getSpotById(_spot.spotId);
+      final spot = await _service.getSpotById(_spot.spotId);
       setState(() => _spot = spot);
     } on PostNotFoundException {
       setState(() => _spotError = 'スポット情報を取得できませんでした。通信環境を確認してください');
@@ -59,7 +59,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
       _reviewError = null;
     });
     try {
-      final reviews = await _repository.getReviews(_spot.spotId);
+      final reviews = await _service.getReviews(_spot.spotId);
       setState(() => _reviews = reviews);
     } on NetworkException catch (e) {
       setState(() => _reviewError = e.message);
@@ -82,7 +82,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      final review = await _repository.addReview(
+      final review = await _service.addReview(
         spotId: _spot.spotId,
         starRating: _selectedStars,
         comment: comment,

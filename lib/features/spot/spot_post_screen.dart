@@ -5,7 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/spot.dart';
 import '../../repositories/map_api_client.dart';
-import '../../repositories/post_repository.dart';
+import '../../services/spot_service.dart';
 import '../../secrets.dart';
 import '../../shared/exceptions.dart';
 
@@ -18,7 +18,7 @@ class SpotPostScreen extends StatefulWidget {
 }
 
 class _SpotPostScreenState extends State<SpotPostScreen> {
-  final _repository = PostRepository();
+  final _service = SpotService();
   final _mapClient = MapApiClient(apiKey: googleMapsApiKey);
   final _spotNameController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -82,7 +82,7 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
     }
     setState(() => _isSubmitting = true);
     try {
-      await _repository.createSpot(
+      await _service.postSpot(
         spotName: _spotNameController.text.trim(),
         campus: _selectedCampus,
         category: _selectedCategory!,
@@ -93,6 +93,8 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
         imageFiles: _selectedImages.map((x) => File(x.path)).toList(),
       );
       if (mounted) Navigator.pop(context, true);
+    } on DuplicateSpotException catch (e) {
+      _showSnackBar(e.message);
     } on ImageCompressionException catch (e) {
       _showSnackBar(e.message);
     } on ValidationException catch (e) {

@@ -23,6 +23,14 @@ class PermissionDeniedException implements Exception {
   String toString() => 'PermissionDeniedException: $message';
 }
 
+class DuplicateSpotException implements Exception {
+  final String message;
+  DuplicateSpotException([this.message = '同じキャンパスに同名のスポットが既に存在します']);
+
+  @override
+  String toString() => 'DuplicateSpotException: $message';
+}
+
 // ストレージ
 class StorageException implements Exception {
   final String message;

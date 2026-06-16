@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/spot.dart';
-import '../../repositories/post_repository.dart';
+import '../../services/spot_service.dart';
 import '../../shared/exceptions.dart';
 import 'spot_detail_screen.dart';
 import 'spot_post_screen.dart';
@@ -151,7 +151,7 @@ class SpotSearchListScreen extends StatefulWidget {
 }
 
 class _SpotSearchListScreenState extends State<SpotSearchListScreen> {
-  final _repository = PostRepository();
+  final _service = SpotService();
   late Campus _selectedCampus;
   List<Spot> _spots = [];
   bool _isLoading = false;
@@ -170,7 +170,7 @@ class _SpotSearchListScreenState extends State<SpotSearchListScreen> {
       _errorMessage = null;
     });
     try {
-      final spots = await _repository.getSpotsByCampus(_selectedCampus);
+      final spots = await _service.searchSpots(_selectedCampus);
       setState(() => _spots = spots);
     } on NetworkException catch (e) {
       setState(() => _errorMessage = e.message);
