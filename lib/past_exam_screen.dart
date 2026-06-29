@@ -1,76 +1,31 @@
 import 'package:flutter/material.dart';
-import 'past_exam.dart';
-import 'past_data.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PastExamListScreen extends StatefulWidget {
+import 'past_exam.dart';
+import 'past_exam_controller.dart';
+
+class PastExamListScreen extends ConsumerWidget {
   const PastExamListScreen({Key? key}) : super(key: key);
 
   @override
-  State<PastExamListScreen> createState() => _PastExamListScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.watch(pastExamControllerProvider);
 
-class _PastExamListScreenState extends State<PastExamListScreen> {
-  final GlobalKey<ScaffoldMessengerState> _messengerKey = GlobalKey<ScaffoldMessengerState>();
-  final TextEditingController _searchController = TextEditingController();
-  
-  String _selectedYear = 'すべて';
-  
-  // 💡 追加: ドロップダウンの選択肢を保持するリスト
-  final List<String> _yearOptions = ['すべて'];
+    // スナックバー表示用のキーはローカル変数として定義（シンプル化）
+    final messengerKey = GlobalKey<ScaffoldMessengerState>();
 
-  List<PastExam> _filteredExams = [];
+    void onExamTap(PastExam exam) {
+      messengerKey.currentState?.removeCurrentSnackBar();
+      messengerKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Text('「${exam.title}」を選択しました（擬似処理）'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
 
-  @override
-  void initState() {
-    super.initState();
-    _filteredExams = List.from(pastExams);
-
-    // 💡 追加: データから重複のない年度を抽出し、降順にソートしてリストに追加
-    final years = pastExams
-        .map((exam) => exam.year.toString())
-        .toSet()
-        .toList()
-      ..sort((a, b) => b.compareTo(a));
-    
-    _yearOptions.addAll(years);
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _filterExams() {
-    final query = _searchController.text.trim().toLowerCase();
-
-    setState(() {
-      _filteredExams = pastExams.where((exam) {
-        final matchesQuery = exam.title.toLowerCase().contains(query) ||
-            exam.subjectName.toLowerCase().contains(query) ||
-            exam.professorName.toLowerCase().contains(query);
-
-        final matchesYear = _selectedYear == 'すべて' || exam.year.toString() == _selectedYear;
-
-        return matchesQuery && matchesYear;
-      }).toList();
-    });
-  }
-
-  void _onExamTap(PastExam exam) {
-    _messengerKey.currentState?.removeCurrentSnackBar();
-    _messengerKey.currentState?.showSnackBar(
-      SnackBar(
-        content: Text('「${exam.title}」を選択しました（擬似処理）'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return ScaffoldMessenger(
-      key: _messengerKey,
+      key: messengerKey,
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -94,17 +49,19 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
                   const Text('キーワード検索', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 8),
                   TextField(
-                    controller: _searchController,
-                    onChanged: (_) => _filterExams(),
+                    // 💡 変更：Controller の updateSearchQuery を呼ぶだけ
+                    onChanged: (value) => ref.read(pastExamControllerProvider).updateSearchQuery(value),
                     decoration: InputDecoration(
                       hintText: '例: 基礎数学、田中教授、期末試験',
                       prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                      suffixIcon: _searchController.text.isNotEmpty
+                      // 💡 変更：Controller が持っている searchQuery を参照
+                      suffixIcon: controller.searchQuery.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear, color: Colors.grey),
                               onPressed: () {
-                                _searchController.clear();
-                                _filterExams();
+                                // 💡 検索窓を空にして、Controllerに伝える処理（少し工夫が必要なため、後述の補足参照）
+                                // ここでは、Controller側で空文字を渡して更新させます
+                                ref.read(pastExamControllerProvider).updateSearchQuery('');
                               },
                             )
                           : null,
@@ -120,19 +77,19 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
                   const Text('年度フィルター', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: _selectedYear,
-                    // 💡 変更: 生成したリストを使う
-                    items: _yearOptions.map((year) {
+                    // 💡 変更：Controller の値を使う
+                    value: controller.selectedYear,
+                    items: controller.yearOptions.map((year) {
                       return DropdownMenuItem(
                         value: year,
                         child: Text(year == 'すべて' ? 'すべての年度' : '$year年度'),
                       );
                     }).toList(),
                     onChanged: (value) {
-                      setState(() {
-                        _selectedYear = value!;
-                        _filterExams();
-                      });
+                      if (value != null) {
+                         // 💡 変更：Controller の updateSelectedYear を呼ぶだけ
+                        ref.read(pastExamControllerProvider).updateSelectedYear(value);
+                      }
                     },
                     decoration: InputDecoration(
                       filled: true,
@@ -153,90 +110,104 @@ class _PastExamListScreenState extends State<PastExamListScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
               child: Text(
-                '検索結果: ${_filteredExams.length} 件',
+                // 💡 変更：Controller の filteredExams を使う
+                '検索結果: ${controller.filteredExams.length} 件',
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey),
               ),
             ),
 
+            // 💡 追加：データ読み込み中のぐるぐる（インジケータ）を表示
             Expanded(
-              child: _filteredExams.isEmpty
-                  ? const Center(
-                      child: Text(
-                        '該当する過去問が見つかりません',
-                        style: TextStyle(color: Colors.grey, fontSize: 14),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                      itemCount: _filteredExams.length,
-                      itemBuilder: (context, index) {
-                        final exam = _filteredExams[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
-                          child: InkWell(
-                            onTap: () => _onExamTap(exam),
-                            borderRadius: BorderRadius.circular(8),
-                            // 💡 変更: Container を Ink にして波紋エフェクトを見えるように
-                            child: Ink(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
+              child: controller.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : controller.filteredExams.isEmpty
+                      ? const Center(
+                          child: Text(
+                            '該当する過去問が見つかりません',
+                            style: TextStyle(color: Colors.grey, fontSize: 14),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                          itemCount: controller.filteredExams.length, // 💡 変更
+                          itemBuilder: (context, index) {
+                            final exam = controller.filteredExams[index]; // 💡 変更
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: InkWell(
+                                onTap: () => onExamTap(exam),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey[300]!, width: 1),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue[50],
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      '${exam.year}年度',
-                                      style: TextStyle(color: Colors.blue[600], fontSize: 11, fontWeight: FontWeight.bold),
-                                    ),
+                                child: Ink(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey[300]!, width: 1),
                                   ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    exam.title,
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Row(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Icon(Icons.menu_book_rounded, size: 16, color: Colors.grey[500]),
-                                      const SizedBox(width: 4),
-                                      Expanded(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue[50],
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
                                         child: Text(
-                                          exam.subjectName,
-                                          style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                                          overflow: TextOverflow.ellipsis,
+                                          '${exam.year}年度',
+                                          style: TextStyle(color: Colors.blue[600], fontSize: 11, fontWeight: FontWeight.bold),
                                         ),
                                       ),
-                                      const SizedBox(width: 16),
-                                      Icon(Icons.person_outline_rounded, size: 16, color: Colors.grey[500]),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          exam.professorName,
-                                          style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        exam.title,
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.menu_book_rounded, size: 16, color: Colors.grey[500]),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              exam.subjectName,
+                                              style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Icon(Icons.person_outline_rounded, size: 16, color: Colors.grey[500]),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              exam.professorName,
+                                              style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                            );
+                          },
+                        ),
             ),
           ],
         ),
+        floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.blue[600],
+        child: const Icon(Icons.add, color: Colors.white),
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const PastExamAddScreen(),
+            ),
+          );
+        },
+      ),
       ),
     );
   }
