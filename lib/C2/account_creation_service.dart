@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
-import 'auth_repositoty.dart';
+import '../C5/auth_repository.dart';
 
-class AccountCreaationService{
-
+class AccountCreationService{
   Future<String> requestAccountCreation
-  (String emailAddress, String password, String passwordConfirm){
+  (String emailAddress, String password, String passwordConfirm) async {
+
+    //C5クラスインスタンス
+    final AuthRepository _authRepository;
+    
+    //コンストラクタによる初期化s
+    AccountCreationService({AuthRepository? authRepository}): _authRepository = authRepository ?? AuthRepository();
+  
+
     //バリデーションチェック
     if(!validateDomain(emailAddress)){
     }
