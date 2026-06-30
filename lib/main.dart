@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_core/firebase_core.dart'; // 💡 Firebaseの初期化に必要
+import 'package:firebase_core/firebase_core.dart';
 
 // 💡 同じフォルダにある過去問一覧画面をインポート
 import 'past_exam_screen.dart'; 
@@ -20,7 +20,6 @@ void main() async {
   }
 
   runApp(
-    // 💡 Riverpodを動かすために全体をProviderScopeで包みます
     const ProviderScope(
       child: MyApp(),
     ),
