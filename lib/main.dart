@@ -1,17 +1,46 @@
 import 'package:flutter/material.dart';
-import 'past_exam_screen.dart';
-void main() {
-  runApp(const MyApp());
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart'; // 💡 Firebaseの初期化に必要
+
+// 💡 同じフォルダにある過去問一覧画面をインポート
+import 'past_exam_screen.dart'; 
+
+void main() async {
+  // FlutterのシステムとFirebaseを安全に繋ぐための呪文
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    // 💡 すでにプロジェクト側でFirebaseの設定ファイル（firebase_options.dart）などが
+    // 導入されている場合は、これでFirebaseが初期化されます
+    await Firebase.initializeApp();
+  } catch (e) {
+    // もしFirebaseの初期化設定（flutterfire configureなど）がまだ終わっていなくても、
+    // アプリ自体がクラッシュして起動すらできない状態を防ぐためのガード
+    print("Firebase初期化未完了（テスト実行を継続します）: $e");
+  }
+
+  runApp(
+    // 💡 Riverpodを動かすために全体をProviderScopeで包みます
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: PastExamListScreen(),
+    return MaterialApp(
+      title: '学内情報共有アプリ テスト',
+      debugShowCheckedModeBanner: false, // 画面右上の「DEBUG」リボンを非表示にする
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true, // モダンなデザインを適用
+      ),
+      // 💡 アプリを起動した瞬間に、いきなり「過去問一覧画面」が開くように設定！
+      home: const PastExamListScreen(),
     );
   }
 }
