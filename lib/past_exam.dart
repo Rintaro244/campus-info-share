@@ -7,7 +7,7 @@ class PastExam {
   String subjectName; // 科目名
   String professorName; // 教授名
   
-  // 💡 Firebase連携に向けて追加したプロパティ
+  // Firebase連携に向けて追加したプロパティ
   List<String> fileUrls; // 過去問の画像やPDFのURLリスト
   DateTime createdAt; // 投稿日時
   String userId; // 投稿したユーザーのID
