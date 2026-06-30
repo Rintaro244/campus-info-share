@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'past_exam.dart';
 import 'past_exam_controller.dart';
+import 'past_exam_add_screen.dart';
 
 class PastExamListScreen extends ConsumerWidget {
   const PastExamListScreen({Key? key}) : super(key: key);
