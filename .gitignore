@@ -62,3 +62,9 @@ local.properties
 **/api_keys.dart
 **/keys.dart
 lib/config/secrets*.dart
+
+# Claude Code instruction files (not deliverables)
+claude_code_instruction_*.md
+
+# Windows / WSL Zone.Identifier artifacts
+*:Zone.Identifier
