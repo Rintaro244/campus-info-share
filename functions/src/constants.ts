@@ -2,42 +2,41 @@
  * 学内情報共有システム — C4 取引・決済処理部 / C5・M6 連携
  * 共有定数。コレクション名・フィールド名・status 値・metadata キーを一元管理する。
  *
- * 設計思想: items スキーマは「教材売買担当（他班所有）」の実物に合わせる必要があるが、
- * 実コレクション名・フィールド名・status 文字列値はソースコードからは読み取れなかった
- * （C5 具象が未提供で、status は c5_interfaces.dart のコメントにしか現れない）。
- * そのため仮値を本ファイルに集約し TODO を付す。確定後はこの 1 ファイルの修正で済む。
+ * items スキーマは教材関連の唯一の担当である C4（本担当）が確定値として定義する。
+ * 値を変える場合はこの 1 ファイルの修正だけで全箇所へ反映される。
  */
 
 /** Firestore コレクション名。 */
 export const COLLECTIONS = {
-  /** TODO(items担当に要確認): 教材アイテムの実コレクション名。 */
+  /** 教材アイテムのコレクション。 */
   items: 'items',
-  /** transactions は C4（私）所有の新規コレクション。 */
+  /** transactions は C4（私）所有のコレクション。 */
   transactions: 'transactions',
 } as const;
 
 /** items ドキュメントのフィールド名。 */
 export const ITEM_FIELDS = {
-  /** TODO(items担当に要確認): 正規価格フィールド名（円・整数）。 */
+  /** 正規価格フィールド名（円・整数）。 */
   price: 'price',
-  /** TODO(items担当に要確認): ステータスフィールド名。 */
+  /** ステータスフィールド名。 */
   status: 'status',
-  /** TODO(items担当に要確認): 出品者 uid フィールド名。 */
+  /** 出品者 uid フィールド名。 */
   sellerId: 'sellerId',
-  /** TODO(items担当に要確認): 購入者 uid フィールド名（fulfill 時に書き込む）。 */
+  /** 購入者 uid フィールド名（fulfill 時に書き込む）。 */
   buyerId: 'buyerId',
   updatedAt: 'updatedAt',
 } as const;
 
 /**
- * item.status の文字列値。
- * TODO(items担当に要確認): 実値は c5_interfaces.dart のコメント（販売中/手続き中/売却済）
- * にしか現れず、実際に保存される文字列が未確定のため仮値。英語 enum 等に変わる可能性あり。
+ * item.status の文字列値（確定値・英語 enum）。
+ *   on_sale … 販売中（購入可能）
+ *   pending … 手続き中（在庫ロック中）
+ *   sold    … 売却済（確定済み）
  */
 export const ITEM_STATUS = {
-  onSale: '販売中',
-  pending: '手続き中',
-  sold: '売却済',
+  onSale: 'on_sale',
+  pending: 'pending',
+  sold: 'sold',
 } as const;
 
 /** transactions ドキュメントの status。こちらは C4 所有なので確定値。 */

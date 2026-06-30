@@ -44,14 +44,14 @@ fulfill 中の致命的失敗時は HTTP 500 を返し、Stripe の Webhook 自�
 
 ## Firestore スキーマ
 
-> **TODO**: `items` は教材売買担当（他班所有）。コレクション名・フィールド名・status の
-> 実値が未確定のため `src/constants.ts` に仮値を集約し TODO を付けている。確定後はそのファイル
-> 1 つを直せばよい。
+> `items` スキーマは教材関連の唯一の担当である C4（本担当）が確定した。
+> コレクション名・フィールド名・status 値は `src/constants.ts` に集約しており、
+> 変更が必要な場合はそのファイル 1 つを直せばよい。
 
 ```
-items/{listingId}            # 他班所有（仮）
+items/{listingId}
   price: int                 # 正規価格（円）
-  status: '販売中'|'手続き中'|'売却済'   # ← 実値要確認（仮値）
+  status: 'on_sale'|'pending'|'sold'   # 販売中 / 手続き中(ロック中) / 売却済
   sellerId: string
   buyerId: string            # fulfill 時に購入者を記録
 
