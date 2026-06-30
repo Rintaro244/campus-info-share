@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// 学内情報共有システム — 教材売買 items の Security Rules（C4 取引・決済）
+// item.status の保護はここで行う（Callable 化はしない方針）。
+// status -> 'sold' はクライアント禁止。fulfill(M5) の Admin SDK のみが行う（Rules をバイパス）。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /items/{listingId} {
+
+      // 一覧表示のため read は全員許可
+      allow read: if true;
+
+      // 出品・削除はクライアント不可（出品機能は現時点スコープ外）
+      allow create, delete: if false;
+
+      // update: ログイン済み + price/sellerId 不変 + (ロック or アンロック) のみ
+      allow update: if request.auth != null
+                    && priceSellerUnchanged()
+                    && (isLock() || isUnlock());
+
+      // price と sellerId は変更不可
+      function priceSellerUnchanged() {
+        return request.resource.data.price == resource.data.price
+            && request.resource.data.sellerId == resource.data.sellerId;
+      }
+
+      // ロック: on_sale -> pending、買い手未設定 -> 自分の uid をセット
+      function isLock() {
+        return resource.data.status == 'on_sale'
+            && request.resource.data.status == 'pending'
+            && resource.data.get('buyerId', null) == null
+            && request.resource.data.buyerId == request.auth.uid;
+      }
+
+      // アンロック(ロールバック): pending -> on_sale、ロック保持者本人が buyerId をクリア
+      // buyerId は「未設定 -> 自分」「自分 -> クリア」の2操作のみ。他人の値へは変更不可。
+      // TODO(将来): アプリ強制終了等で unlock されない放置ロックは client では解消不能。
+      //   TTL or 定期 Cloud Function で pending の自動解放を別途実装する（今回スコープ外）。
+      function isUnlock() {
+        return resource.data.status == 'pending'
+            && request.resource.data.status == 'on_sale'
+            && resource.data.get('buyerId', null) == request.auth.uid
+            && request.resource.data.get('buyerId', null) == null;
+      }
+    }
+  }
+}
