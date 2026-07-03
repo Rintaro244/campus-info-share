@@ -46,6 +46,7 @@ class StorageRepository {
 
   /// 画像を1MB以下に圧縮する。対応フォーマットはjpg/png/webp。
   /// 圧縮後も1MBを超える場合は例外を投げる。
+  /// ここは共有メソッドとして、スポット機能以外でも使えるはず。
   Future<File> _compressIfNeeded(File file) async {
     final bytes = await file.readAsBytes();
     // 1MB以下ならそのまま返す
