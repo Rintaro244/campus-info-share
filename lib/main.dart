@@ -1,17 +1,21 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
-import 'features/spot/spot_search_screen.dart';
+import 'mainscreen.dart';
 
-// firebase_options.dart は .gitignore 対象のため、
-// `flutterfire configure` を実行して生成し、
-// DefaultFirebaseOptions.currentPlatform を options に渡すこと。
+// firebase_options.dart は共有Firebase(campus-info-share)用を
+// リポジトリ管理し、班全員で同一のものを使用する。
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MyApp());
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -20,13 +24,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '学内情報共有システム',
+      title: '学内情報共有アプリ',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      // TODO: 本番はW1起点（ログイン画面）。W1未実装のため当面SpotSearchScreenを直接起動
-      home: const SpotSearchScreen(),
+      home: const MainScreen(),
     );
   }
 }

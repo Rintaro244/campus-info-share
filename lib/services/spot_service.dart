@@ -7,6 +7,8 @@ import '../repositories/post_repository.dart';
 import '../repositories/storage_repository.dart';
 import '../shared/exceptions.dart';
 
+//C3の範囲
+//Repository(データベース)に仕事を割り振るだけ
 class SpotService {
   final PostRepository _postRepository;
   final StorageRepository _storageRepository;
@@ -39,11 +41,13 @@ class SpotService {
     double? latitude,
     double? longitude,
     List<File> imageFiles = const [],
+  //Firestore遅いので、asyncで非同期処理する
   }) async {
+    // 入力チェック
     if (spotName.trim().isEmpty) {
       throw ValidationException('スポット名を入力してください');
     }
-    if (spotName.length > 50) {
+    if (spotName.characters.length > 50) {
       throw ValidationException('スポット名は50文字以内で入力してください');
     }
     if (category.isEmpty) {
@@ -56,14 +60,17 @@ class SpotService {
       throw DuplicateSpotException();
     }
 
+    //画像のアップロードとスポットの作成
     final spotId = const Uuid().v4();
     List<String> imageUrls = [];
     if (imageFiles.isNotEmpty) {
       imageUrls = await Future.wait(
+        //storageRepository.uploadSpotImage(f, spotId)で画像をアップロードしてURLを取得,storageRepository.dartにつながる
         imageFiles.map((f) => _storageRepository.uploadSpotImage(f, spotId)),
       );
     }
 
+    //Firestoreにスポットを作成する,PostRepository.dartにつながる
     await _postRepository.createSpot(
       spotId: spotId,
       spotName: spotName,
@@ -76,7 +83,7 @@ class SpotService {
       imageUrls: imageUrls,
     );
 
-    return 'success';
+    return 'success';  
   }
 
   // M6-3: スポット削除

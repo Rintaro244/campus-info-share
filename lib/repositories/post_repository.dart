@@ -4,9 +4,12 @@ import '../models/spot.dart';
 import '../models/spot_review.dart';
 import '../shared/exceptions.dart';
 
+//Firestoreのデータベース(コレクション)を操作するためのクラス
 class PostRepository {
+  //firestoreのインスタンスを取得
   final FirebaseFirestore _firestore;
 
+  //collectionを追加していってください
   static const String _spotsCollection = 'spots';
   static const String _reviewsCollection = 'reviews';
 
@@ -17,6 +20,7 @@ class PostRepository {
 
   /// キャンパスでフィルタしてスポット一覧を取得する（新着順）。
   Future<List<Spot>> getSpotsByCampus(Campus campus) async {
+    //whereで絞り込み、orderByで並び替え、getで取得する。取得したドキュメントをSpotに変換してリストで返す。
     try {
       final snapshot = await _firestore
           .collection(_spotsCollection)
@@ -29,7 +33,7 @@ class PostRepository {
     }
   }
 
-  /// spotId でスポット1件を取得する。
+  /// spotIdを参考にスポット1件を取得する。スポット一覧は取らない。
   Future<Spot> getSpotById(String spotId) async {
     try {
       final doc =
@@ -68,6 +72,7 @@ class PostRepository {
     };
 
     try {
+      //spotsコレクション→ドキュメントIDをspotIdにしてデータを書き込む
       await _firestore.collection(_spotsCollection).doc(spotId).set(data);
       return Spot(
         spotId: spotId,
@@ -87,6 +92,7 @@ class PostRepository {
   }
 
   /// Firestore のスポットドキュメントを削除する。
+  /// 消すかの権限はService.dartで確認する。
   Future<void> deleteSpot(String spotId) async {
     try {
       await _firestore.collection(_spotsCollection).doc(spotId).delete();
@@ -103,6 +109,8 @@ class PostRepository {
       final snapshot = await _firestore
           .collection(_spotsCollection)
           .doc(spotId)
+          //spotIdのドキュメントの中にreviewsコレクションがあるので、そこを参照する(入れ子構造)
+          //スポットごとのレビューをまとめられる
           .collection(_reviewsCollection)
           .orderBy('createdAt', descending: true)
           .get();
@@ -112,7 +120,7 @@ class PostRepository {
     }
   }
 
-  /// レビューを投稿する。平均評価・件数の更新をトランザクションで行う。
+  /// レビューを投稿する。平均評価・件数の更新も同時に行う。
   Future<SpotReview> addReview({
     required String spotId,
     required int starRating,
@@ -120,23 +128,28 @@ class PostRepository {
     required String authorUid,
   }) async {
     final reviewId = const Uuid().v4();
+    //ドキュメントの場所を指定するための参照を作る(spotRefとreviewRef)、一々_firestore.collection('spots').doc(spotId)書くのの大変
     final spotRef = _firestore.collection(_spotsCollection).doc(spotId);
     final reviewRef =
         spotRef.collection(_reviewsCollection).doc(reviewId);
 
     try {
+      //トランザクション：「この中の処理は全部成功か、全部失敗か、どちらかしかないという保証
       // トランザクションでレビュー追加と平均評価・件数の更新を同時に行う
       await _firestore.runTransaction((transaction) async {
+        //今のスポット情報を取得
         final spotDoc = await transaction.get(spotRef);
         if (!spotDoc.exists) throw PostNotFoundException();
 
         final d = spotDoc.data()!;
         final currentCount = (d['reviewCount'] as int?) ?? 0;
         final currentAvg = (d['averageRating'] as num?)?.toDouble() ?? 0.0;
+        //heikin
         final newCount = currentCount + 1;
         final newAvg = ((currentAvg * currentCount) + starRating) / newCount;
 
         transaction.set(reviewRef, {
+          //レビューの中身
           'spotId': spotId,
           'starRating': starRating,
           'comment': comment,
@@ -144,6 +157,7 @@ class PostRepository {
           'createdAt': FieldValue.serverTimestamp(),
         });
         transaction.update(spotRef, {
+          //平均評価と件数を更新
           'averageRating': newAvg,
           'reviewCount': newCount,
         });
@@ -165,6 +179,7 @@ class PostRepository {
   }
 
   /// レビューを削除する。投稿者本人のみ許可。
+  /// Repositoryだが権限チェックしている、他人のレビューを消すことはできないようにするため
   Future<void> deleteReview({
     required String spotId,
     required String reviewId,
@@ -191,8 +206,9 @@ class PostRepository {
     }
   }
 
-  // ── 内部変換 ──────────────────────────────────────────
-
+  // ── 内部変換 ──────────────────
+  //Firestoreから返ってくるドキュメントをSpot型に変換する
+  //生データを整えている
   Spot _docToSpot(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
     return Spot.fromMap({

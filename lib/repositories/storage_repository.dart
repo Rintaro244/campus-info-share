@@ -15,10 +15,13 @@ class StorageRepository {
   /// ファイルが1MBを超える場合は自動圧縮する。
   Future<String> uploadSpotImage(File imageFile, String spotId) async {
     try {
+      // 画像を圧縮する必要がある場合は圧縮する
       final compressed = await _compressIfNeeded(imageFile);
       final fileName = '${const Uuid().v4()}.jpg';
       final ref = _storage.ref('spots/$spotId/$fileName');
+
       await ref.putFile(compressed);
+      // アップロード後にダウンロードURLを取得して返す
       return await ref.getDownloadURL();
     } on ImageCompressionException {
       rethrow;
@@ -33,6 +36,7 @@ class StorageRepository {
   Future<void> deleteSpotImages(String spotId) async {
     try {
       final ref = _storage.ref('spots/$spotId');
+      // フォルダ内の画像の一覧を取得して全て削除する
       final result = await ref.listAll();
       await Future.wait(result.items.map((item) => item.delete()));
     } on FirebaseException catch (e) {
@@ -40,8 +44,11 @@ class StorageRepository {
     }
   }
 
+  /// 画像を1MB以下に圧縮する。対応フォーマットはjpg/png/webp。
+  /// 圧縮後も1MBを超える場合は例外を投げる。
   Future<File> _compressIfNeeded(File file) async {
     final bytes = await file.readAsBytes();
+    // 1MB以下ならそのまま返す
     if (bytes.length <= _maxBytes) return file;
 
     final ext = file.path.split('.').last.toLowerCase();
@@ -50,6 +57,7 @@ class StorageRepository {
     }
 
     // 品質を段階的に下げて1MB以下を目指す
+    //画像の圧縮は品質を下げることで行う。FlutterImageCompressを使用して、品質を80, 60, 40, 20と段階的に下げて圧縮する。圧縮後の画像が1MB以下になったらその画像を返す。
     for (final quality in [80, 60, 40, 20]) {
       final result = await FlutterImageCompress.compressWithList(
         bytes,

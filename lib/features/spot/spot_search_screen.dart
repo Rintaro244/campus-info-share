@@ -6,7 +6,7 @@ import '../../shared/exceptions.dart';
 import 'spot_detail_screen.dart';
 import 'spot_post_screen.dart';
 
-// W16-a: キャンパス選択
+// W16-a: キャンパス選択画面
 class SpotSearchScreen extends StatelessWidget {
   const SpotSearchScreen({super.key});
 
@@ -15,6 +15,7 @@ class SpotSearchScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: Center(
+          //Centerで縦方向に中央寄せする。Columnで縦方向に並べる。SizedBoxで余白を作る。OutlinedButtonでキャンパス選択ボタンを作る。_CampusCardでキャンパスカードを作る。
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -96,9 +97,11 @@ class _CampusCard extends StatelessWidget {
         elevation: 1,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
+          //Naiver.pushでSpotSearchListScreenに遷移する。Campusを引数として渡す。
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
+              //選んだキャンパスを引数としてSpotSearchListScreenに渡す
               builder: (_) => SpotSearchListScreen(campus: campus),
             ),
           ),
@@ -142,6 +145,8 @@ class _CampusCard extends StatelessWidget {
 }
 
 // W16-b: スポット一覧
+//StatefulWidgetでSpotSearchListScreenを作る。StateでSpotServiceを使ってスポット一覧を取得する。FutureBuilderでスポット一覧を表示する。
+//Statefulなので、クラスが2つに分かれる。SpotSearchListScreenと_SpotSearchListScreenState。
 class SpotSearchListScreen extends StatefulWidget {
   final Campus campus;
   const SpotSearchListScreen({super.key, required this.campus});
@@ -151,19 +156,21 @@ class SpotSearchListScreen extends StatefulWidget {
 }
 
 class _SpotSearchListScreenState extends State<SpotSearchListScreen> {
-  final _service = SpotService();
+  final _service = SpotService();//SpotServiceを使ってスポット一覧を取得する。
   late Campus _selectedCampus;
   List<Spot> _spots = [];
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
+  //画面が初期化されたときに、_selectedCampusにwidget.campusを代入して、_loadSpots()を呼び出す。
   void initState() {
     super.initState();
     _selectedCampus = widget.campus;
     _loadSpots();
   }
 
+  //データ取得の心臓部。SpotServiceのsearchSpots()を呼び出して、スポット一覧を取得する。取得中はローディング表示、エラー時はエラーメッセージを表示する。
   Future<void> _loadSpots() async {
     setState(() {
       _isLoading = true;
@@ -171,7 +178,7 @@ class _SpotSearchListScreenState extends State<SpotSearchListScreen> {
     });
     try {
       final spots = await _service.searchSpots(_selectedCampus);
-      setState(() => _spots = spots);
+      setState(() => _spots = spots);//setStateでスポット一覧を更新する。
     } on NetworkException catch (e) {
       setState(() => _errorMessage = e.message);
     } finally {
@@ -249,6 +256,8 @@ class _SpotSearchListScreenState extends State<SpotSearchListScreen> {
     );
   }
 
+  //画面の描画、スポット一覧の表示を行う。_isLoadingがtrueならローディング表示、_errorMessageがnullでないならエラーメッセージ表示、_spotsが空なら「スポットがまだありません」と表示する。それ以外はGridViewでスポット一覧を表示する。
+  //状態に応じて出し分け
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
