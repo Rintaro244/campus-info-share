@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'past_exam_screen.dart';
+import 'features/spot/spot_search_screen.dart';  // import追加
 
 class MainScreen extends StatefulWidget{
   const MainScreen({super.key});
@@ -14,7 +15,7 @@ class _MainScreenState extends State<MainScreen>{
   final List<Widget> _screens = [
     const Center(child: Text('講義情報', style: TextStyle(fontSize: 20))),
     const PastExamListScreen(),
-    const Center(child: Text('おすすめspot', style: TextStyle(fontSize: 20))),
+    const SpotSearchScreen(),  // SPOT検索画面を表示
     const Center(child: Text('部活・サークル', style: TextStyle(fontSize: 20))),
     const Center(child: Text('教材取引', style: TextStyle(fontSize: 20))),
   ];
