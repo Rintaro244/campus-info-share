@@ -47,7 +47,7 @@ app.*.map.json
 # Firebase - contains API keys and project credentials
 google-services.json
 GoogleService-Info.plist
-firebase_options.dart
+#firebase_options.dart
 
 # Android local properties - may contain Google Maps / SDK keys
 local.properties
@@ -62,3 +62,9 @@ local.properties
 **/api_keys.dart
 **/keys.dart
 lib/config/secrets*.dart
+
+# Claude Code instruction files (not deliverables)
+claude_code_instruction_*.md
+
+# Windows / WSL Zone.Identifier artifacts
+*:Zone.Identifier
