@@ -74,14 +74,12 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
       _showSnackBar('写真を1枚以上選択してください');
       return;
     }
-    // TODO: 動作確認のため一時的にログインチェックをコメントアウト（テスト後に戻すこと）
-    // final uid = FirebaseAuth.instance.currentUser?.uid;
-    // if (uid == null) {
-    //   _showSnackBar('ログインが必要です');
-    //   if (mounted) Navigator.pop(context);
-    //   return;
-    // }
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'test-user';
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      _showSnackBar('ログインが必要です');
+      if (mounted) Navigator.pop(context);
+      return;
+    }
     setState(() => _isSubmitting = true);
     try {
       await _service.postSpot(
