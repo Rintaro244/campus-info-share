@@ -220,13 +220,14 @@ class _SpotSearchListScreenState extends State<SpotSearchListScreen> {
         height: 44,
         child: FloatingActionButton(
           onPressed: () async {
-            final user = FirebaseAuth.instance.currentUser;
-            if (user == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('ログインが必要です')),
-              );
-              return;
-            }
+            // TODO: 動作確認のため一時的にログインチェックをコメントアウト（テスト後に戻すこと）
+            // final user = FirebaseAuth.instance.currentUser;
+            // if (user == null) {
+            //   ScaffoldMessenger.of(context).showSnackBar(
+            //     const SnackBar(content: Text('ログインが必要です')),
+            //   );
+            //   return;
+            // }
             final created = await Navigator.push<bool>(
               context,
               MaterialPageRoute(
