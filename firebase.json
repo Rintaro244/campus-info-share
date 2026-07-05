@@ -1,1 +1,37 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"campus-info-share","appId":"1:498071855638:android:67e6d77ebf4a8d26390b37","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"campus-info-share","configurations":{"android":"1:498071855638:android:67e6d77ebf4a8d26390b37","ios":"1:498071855638:ios:2148f8b51329ad67390b37","macos":"1:498071855638:ios:2148f8b51329ad67390b37","web":"1:498071855638:web:1c52418e92f07426390b37","windows":"1:498071855638:web:6ac7b045f9fa4416390b37"}}}}}}
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
+    }
+  ],
+  "emulators": {
+    "functions": { "port": 5001 },
+    "firestore": { "port": 8080 },
+    "ui": { "enabled": true }
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "campus-info-share",
+          "appId": "1:498071855638:android:67e6d77ebf4a8d26390b37",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "campus-info-share",
+          "configurations": {
+            "android": "1:498071855638:android:67e6d77ebf4a8d26390b37",
+            "ios": "1:498071855638:ios:2148f8b51329ad67390b37",
+            "macos": "1:498071855638:ios:2148f8b51329ad67390b37",
+            "web": "1:498071855638:web:1c52418e92f07426390b37",
+            "windows": "1:498071855638:web:6ac7b045f9fa4416390b37"
+          }
+        }
+      }
+    }
+  }
+}
