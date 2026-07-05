@@ -36,5 +36,4 @@ Login画面と結合したら，ログイン完了後に遷移する画面(最�
 
 MainScreen()のfinal List<Widget>にそれぞれの一番最初に開きたいメインページに
 変更して，各.dartファイルをimport
-
 */
