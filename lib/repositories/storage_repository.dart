@@ -18,11 +18,13 @@ class StorageRepository {
     try {
       final bytes = await imageFile.readAsBytes();
       // 画像を圧縮する必要がある場合は圧縮する
-      final compressed = await _compressIfNeeded(bytes, imageFile.name);
+      final (compressed, contentType) =
+          await _compressIfNeeded(bytes, imageFile.name);
       final fileName = '${const Uuid().v4()}.jpg';
       final ref = _storage.ref('spots/$spotId/$fileName');
 
-      await ref.putData(compressed);
+      // putData はputFileと違いファイルの中身からContent-Typeを自動判定しないため、明示的に指定する
+      await ref.putData(compressed, SettableMetadata(contentType: contentType));
       // アップロード後にダウンロードURLを取得して返す
       return await ref.getDownloadURL();
     } on ImageCompressionException {
@@ -48,12 +50,15 @@ class StorageRepository {
 
   /// 画像を1MB以下に圧縮する。対応フォーマットはjpg/png/webp。
   /// 圧縮後も1MBを超える場合は例外を投げる。
+  /// 戻り値はアップロード用のバイト列と、実際の中身に対応するContent-Typeの組。
   /// ここは共有メソッドとして、スポット機能以外でも使えるはず。
-  Future<Uint8List> _compressIfNeeded(Uint8List bytes, String fileName) async {
-    // 1MB以下ならそのまま返す
-    if (bytes.length <= _maxBytes) return bytes;
-
+  Future<(Uint8List, String)> _compressIfNeeded(
+      Uint8List bytes, String fileName) async {
     final ext = fileName.split('.').last.toLowerCase();
+
+    // 1MB以下ならそのまま返す（フォーマットは元のファイル拡張子から判定）
+    if (bytes.length <= _maxBytes) return (bytes, _mimeTypeFor(ext));
+
     if (!{'jpg', 'jpeg', 'png', 'webp'}.contains(ext)) {
       throw UnsupportedFormatException('対応フォーマット: jpg/png/webp');
     }
@@ -67,10 +72,17 @@ class StorageRepository {
         format: CompressFormat.jpeg,
       );
       if (result.length <= _maxBytes) {
-        return result;
+        // compressWithList は常にjpegとして出力するため、Content-Typeもjpegに揃える
+        return (result, 'image/jpeg');
       }
     }
 
     throw ImageCompressionException('画像を1MB以下に圧縮できませんでした');
   }
+
+  String _mimeTypeFor(String ext) => switch (ext) {
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        _ => 'image/jpeg',
+      };
 }
