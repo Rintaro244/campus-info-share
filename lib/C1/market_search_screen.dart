@@ -2,6 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'market_post_screen.dart';
+// 👇 追加：C3のモデルとマネージャーをインポート
+import '../C3/market_manager.dart';
+import '../C3/market_model.dart';
+import 'market_detail_screen.dart'; // 💡 詳細画面への遷移用にインポート
 
 class MarketSearchScreen extends StatefulWidget {
   const MarketSearchScreen({Key? key}) : super(key: key);
@@ -12,18 +16,34 @@ class MarketSearchScreen extends StatefulWidget {
 
 class _MarketSearchScreenState extends State<MarketSearchScreen> {
   String _keyword = '';
-  final List<Map<String, String>> _dummyItems = [
-    {'title': '基本情報技術者 合格教本', 'price': '1500', 'desc': '書き込みなし、非常に綺麗な状態です。'},
-    {'title': '理工系の微分積分学', 'price': '1200', 'desc': '1年の共通科目で使います。'},
-    {'title': '詳解応用情報技術者 過去問題集', 'price': '2000', 'desc': '午前・午後ともに対策できます。'},
-  ];
+  
+  // 💡 ダミーデータをやめて、Firestoreから取得したデータを入れるリスト
+  List<MarketModel> _items = [];
+  bool _isLoading = false; // 読み込み中くるくる表示用
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchItems(); // 画面が開いた瞬間にデータベースから取得！
+  }
+
+  // 💡 Firestoreからデータを取得する関数
+  Future<void> _fetchItems() async {
+    setState(() { _isLoading = true; });
+
+    final results = await MarketManager().searchProducts(
+  keyword: _keyword, // 💡 画面側で使っているキーワードの変数名
+  campus: 'すべて',   // 💡 画面側で使っているキャンパスの変数名（※）
+);
+
+    setState(() {
+      _items = results;
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final filteredItems = _dummyItems.where((item) {
-      return item['title']!.contains(_keyword) || item['desc']!.contains(_keyword);
-    }).toList();
-
     return Scaffold(
       appBar: AppBar(title: const Text('教材取引（フリーマーケット）')),
       body: Column(
@@ -32,33 +52,57 @@ class _MarketSearchScreenState extends State<MarketSearchScreen> {
             padding: const EdgeInsets.all(8.0),
             child: TextField(
               decoration: const InputDecoration(labelText: 'キーワードで教材を検索', prefixIcon: Icon(Icons.search)),
-              onChanged: (val) => setState(() => _keyword = val),
+              onChanged: (val) {
+                _keyword = val;
+                _fetchItems(); // 文字が入力されるたびに再検索
+              },
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: filteredItems.length,
-              itemBuilder: (context, index) {
-                final item = filteredItems[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  child: ListTile(
-                    title: Text(item['title']!),
-                    subtitle: Text(item['desc']!),
-                    trailing: Text('${item['price']} 円', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
-                  ),
-                );
-              },
-            ),
+            child: _isLoading 
+                ? const Center(child: CircularProgressIndicator()) // 読み込み中はくるくる
+                : _items.isEmpty
+                    ? const Center(child: Text('出品されている教材がありません。'))
+                    : ListView.builder(
+                        itemCount: _items.length,
+                        itemBuilder: (context, index) {
+                          final item = _items[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            child: ListTile(
+                              title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Text(item.description, maxLines: 2, overflow: TextOverflow.ellipsis),
+                              // 💡 値段を見やすく表示
+                              trailing: Text('¥${item.price}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 16)),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MarketDetailScreen(product: item),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const MarketPostScreen()));
+        onPressed: () async {
+          // 💡 出品画面へ移動し、戻ってきたときに「true」を受け取ったらリストを再読み込み！
+          final result = await Navigator.push(
+            context, 
+            MaterialPageRoute(builder: (context) => const MarketPostScreen()),
+          );
+          if (result == true) {
+            _fetchItems();
+          }
         },
-        label: const Text('出品する'),
-        icon: const Icon(Icons.add),
+        backgroundColor: Colors.orange[600],
+        label: const Text('出品する', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        icon: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

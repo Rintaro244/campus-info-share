@@ -1,17 +1,18 @@
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'circle_model.dart';
+import 'market_model.dart';
 
-class CircleManager {
-  final CollectionReference _collection = FirebaseFirestore.instance.collection('circles');
-  final Reference _storageRef = FirebaseStorage.instance.ref().child('circle_images');
+class MarketManager {
+  final CollectionReference _collection = FirebaseFirestore.instance.collection('products');
+  final Reference _storageRef = FirebaseStorage.instance.ref().child('market_images');
 
   // 💡 修正：引数に userId を追加
-  Future<bool> registerCircle({
-    required String name,
+  Future<bool> registerProduct({
+    required String title,
+    required int price,
     required String campus,
-    required String category,
+    required String condition,
     required String description,
     required String userId, // 👈 追加
     Uint8List? imageBytes, 
@@ -26,17 +27,18 @@ class CircleManager {
         imageUrl = await imageRef.getDownloadURL();
       }
 
-      final newCircle = CircleModel(
+      final newProduct = MarketModel(
         id: docRef.id,
-        name: name,
+        title: title,
+        price: price,
         campus: campus,
-        category: category,
+        condition: condition,
         description: description,
         imageUrl: imageUrl, 
         userId: userId, // 💡 追加
       );
 
-      await docRef.set(newCircle.toMap());
+      await docRef.set(newProduct.toMap());
       return true;
     } catch (e) {
       print('【C3ロジック】登録エラー: $e');
@@ -45,51 +47,47 @@ class CircleManager {
   }
 
   // 🔍 （既存）検索関数はそのまま
-  Future<List<CircleModel>> searchCircles({
+  Future<List<MarketModel>> searchProducts({
     required String keyword,
     required String campus,
-    required String category,
   }) async {
     try {
       Query query = _collection;
       if (campus != 'すべて') query = query.where('campus', isEqualTo: campus);
-      if (category != 'すべて') query = query.where('category', isEqualTo: category);
 
       final snapshot = await query.get();
-      List<CircleModel> circles = snapshot.docs.map((doc) => CircleModel.fromMap(doc.id, doc.data() as Map<String, dynamic>)).toList();
+      List<MarketModel> products = snapshot.docs.map((doc) => MarketModel.fromMap(doc.id, doc.data() as Map<String, dynamic>)).toList();
 
       if (keyword.isNotEmpty) {
-        circles = circles.where((c) => c.name.contains(keyword) || c.description.contains(keyword)).toList();
+        products = products.where((p) => p.title.contains(keyword) || p.description.contains(keyword)).toList();
       }
-      return circles;
+      return products;
     } catch (e) {
-      return []; 
-    }
-  }
-
-  // 🎁 追加①：自分のサークルだけを取得する（マイページ用）
-  Future<List<CircleModel>> fetchMyCircles(String targetUserId) async {
-    try {
-      final snapshot = await _collection.where('userId', isEqualTo: targetUserId).get();
-      return snapshot.docs.map((doc) => CircleModel.fromMap(doc.id, doc.data() as Map<String, dynamic>)).toList();
-    } catch (e) {
-      print('【C3ロジック】マイサークル取得エラー: $e');
       return [];
     }
   }
 
-  // 🗑️ 追加②：サークルを削除する（マイページ用）
-  Future<bool> deleteCircle(String docId, String? imageUrl) async {
+  // 🎁 追加①：自分の出品した教材だけを取得する（マイページ用）
+  Future<List<MarketModel>> fetchMyProducts(String targetUserId) async {
     try {
-      // 1. Firestoreから文字データを消す
+      final snapshot = await _collection.where('userId', isEqualTo: targetUserId).get();
+      return snapshot.docs.map((doc) => MarketModel.fromMap(doc.id, doc.data() as Map<String, dynamic>)).toList();
+    } catch (e) {
+      print('【C3ロジック】マイ出品取得エラー: $e');
+      return [];
+    }
+  }
+
+  // 🗑️ 追加②：出品を取り消す（マイページ用）
+  Future<bool> deleteProduct(String docId, String? imageUrl) async {
+    try {
       await _collection.doc(docId).delete();
       
-      // 2. Storageから画像データも消す（ゴミが残らない親切設計！）
       if (imageUrl != null && imageUrl.isNotEmpty) {
         try {
           await FirebaseStorage.instance.refFromURL(imageUrl).delete();
         } catch (e) {
-          print('画像削除エラー(無視してOK): $e');
+          print('画像削除エラー: $e');
         }
       }
       return true;

@@ -6,6 +6,7 @@ class CircleModel {
   final String category;    // カテゴリ（運動系 / 文化系 / その他）
   final String description; // 紹介文（最大800文字）
   final String? imageUrl;   // カバー画像のURL（任意）
+  final String userId;      // 作成者のユーザーID
 
   CircleModel({
     required this.id,
@@ -14,6 +15,7 @@ class CircleModel {
     required this.category,
     required this.description,
     this.imageUrl,
+    required this.userId,
   });
 
   // 💡 Firebase (Map型データ) から受け取ったデータを、このクラスの形に変換する処理
@@ -25,6 +27,7 @@ class CircleModel {
       category: map['category'] ?? 'その他',
       description: map['description'] ?? '',
       imageUrl: map['imageUrl'],
+      userId: map['userId'] ?? '',
     );
   }
 
@@ -36,6 +39,7 @@ class CircleModel {
       'category': category,
       'description': description,
       'imageUrl': imageUrl,
+      'userId': userId,
     };
   }
 }
