@@ -65,7 +65,7 @@ class AuthRepository {
     }
   }
 
-  //
+  //ログイン時入力情報が正しいか判定
   Future<void> requestSignInWithPassword(String email, String password) async {
     try {
       //セッションリセット
@@ -86,6 +86,7 @@ class AuthRepository {
     }
   }
 
+  //OTP検証
   Future<void> requestVerifyOTP(String otpCode) async {
     if (_multiFactorResolver == null) { 
       throw InvalidLoginSessionException();
@@ -154,6 +155,7 @@ class AuthRepository {
     }
   }
 
+  //サインアウト処理
   Future<void> requestSignOut() async {
     try{
       await _firebaseAuth.signOut();
@@ -162,6 +164,7 @@ class AuthRepository {
     }
   }
 
+  //MFA初期設定が必要かチェック
   Future<bool> checkIsMfaEnrolled() async {
     final user = _firebaseAuth.currentUser;
     if (user == null) return false;

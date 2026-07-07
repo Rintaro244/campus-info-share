@@ -7,55 +7,51 @@ class RegistrationScreen extends StatelessWidget {
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
 
+  RegistrationScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('アカウント新規作成')),
+      appBar: AppBar(title: const Text('アカウント新規作成')),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
               controller: _emailController,
-              decoration: InputDecoration(labelText: 'メールアドレス'),
+              decoration: const InputDecoration(labelText: 'メールアドレス'),
             ),
             TextField(
               controller: _passwordController,
-              decoration: InputDecoration(labelText: 'パスワード'),
+              decoration: const InputDecoration(labelText: 'パスワード'),
               obscureText: true,
             ),
             TextField(
               controller: _passwordConfirmController,
-              decoration: InputDecoration(labelText: '確認用パスワード'),
+              decoration: const InputDecoration(labelText: '確認用パスワード'),
               obscureText: true,
             ),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () async {
                 try {
-                  final isValid = await _controller.submitRegistration(
+                  await _controller.submitRegistration(
                     _emailController.text,
                     _passwordController.text,
                     _passwordConfirmController.text,
                   );
-
-                  if (isValid) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('確認メールを送信しました。')),
-                    );
-                    Navigator.pop(context); // ログイン画面に戻る
-                  }
+                  if (!context.mounted) return;
+                  
+                  // 登録処理が成功したらメール確認画面へ（現在の画面は破棄）
+                  Navigator.pushReplacementNamed(context, '/email-verification');
                 } catch (e) {
-                  // E1やE2のエラーメッセージを表示
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+                    SnackBar(content: Text(e.toString())),
                   );
                 }
               },
-              child: Text('アカウント作成'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('ログインはこちら'),
+              child: const Text('アカウント作成'),
             ),
           ],
         ),

@@ -28,7 +28,10 @@ class LoginService{
       }
 
     } on MultiFactorAuthRequiredException {
-      //MFA検証が必要
+      //OTP検証が必要
+      rethrow;
+    } on MfaSetupRequiredException {
+      //MFA初期設定が必要
       rethrow;
     } on InvalidCredentialException {
       rethrow;

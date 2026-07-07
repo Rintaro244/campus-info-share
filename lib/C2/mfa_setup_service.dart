@@ -6,8 +6,7 @@ class MfaSetupService {
   final AuthRepository _authRepository;
 
   // コンストラクタによる初期化
-  MfaSetupService({AuthRepository? authRepository})
-      : _authRepository = authRepository ?? AuthRepository();
+  MfaSetupService({AuthRepository? authRepository}): _authRepository = authRepository ?? AuthRepository();
 
   Future<String> initiateMfaSetup() async {
     try {
