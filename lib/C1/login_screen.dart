@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'authentication_controller.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
   final _controller = AuthenticationController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  bool _isPasswordObscure = true;
 
   @override
   Widget build(BuildContext context) {
@@ -21,8 +30,39 @@ class LoginScreen extends StatelessWidget {
             ),
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'パスワード'),
-              obscureText: true,
+              obscureText: _isPasswordObscure,
+              decoration: InputDecoration(
+                labelText: 'パスワード',
+                // 👇 IconButtonの代わりにGestureDetectorを使う
+                suffixIcon: GestureDetector(
+                  // ① ボタンを「押し込んだ」瞬間にパスワードを表示
+                  onTapDown: (_) {
+                    setState(() {
+                      _isPasswordObscure = false;
+                    });
+                  },
+                  // ② ボタンから「指を離した」瞬間にパスワードを隠す
+                  onTapUp: (_) {
+                    setState(() {
+                      _isPasswordObscure = true;
+                    });
+                  },
+                  // ③ ボタンを押したまま指を画面外に「ずらして離した」時も隠す（安全対策）
+                  onTapCancel: () {
+                    setState(() {
+                      _isPasswordObscure = true;
+                    });
+                  },
+                  // アイコン
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Icon(
+                      _isPasswordObscure ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(

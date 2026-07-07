@@ -4,15 +4,26 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthRepository {
 
-  final FirebaseAuth _firebaseAuth;
+  //クラス間での状態を保持するためシングルトンにする
+
+  //インスタンスを1つだけ生成する
+  static final AuthRepository _instance = AuthRepository._internal();
+  //外部から呼ばれたときに同じ_instanceを返す
+  factory AuthRepository({FirebaseAuth? firebaseAuth}) {
+    if (firebaseAuth != null) {
+      //テスト用
+      _instance._firebaseAuth = firebaseAuth;
+    }
+    return _instance;
+  }
+
+  //最初の1回だけ呼ばれるコンストラクタ
+  AuthRepository._internal() : _firebaseAuth = FirebaseAuth.instance;
+
+  FirebaseAuth _firebaseAuth;
 
   MultiFactorResolver? _multiFactorResolver;
   TotpSecret? _tempTotpSecret;
-  
-  //テスト用に偽物のFirebaseを作成
-  //テスト時にはFirebaseAuth型の引数を渡してそれをインスタンス変数としてセットする．
-  //アプリ実行時にはFirebaseAuthのインスタンスを作成
-  AuthRepository({FirebaseAuth? firebaseAuth}): _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
   //emailとpasswordからアカウントを仮登録する
   Future<void> createTemporaryAccount(String email, String password) async {

@@ -55,7 +55,7 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('QRコードを読み取り、アプリに表示された6桁のコードを入力してください。'),
+            const Text('Microsoft AuthenticatorアプリからQRコードを読み取り、表示された6桁のワンタイムパスワードコードを入力してください。'),
             const SizedBox(height: 16),
             
             // 👇 状態によって表示を切り替えるロジック
