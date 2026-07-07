@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'past_exam_screen.dart';
+import 'past/past_exam_screen.dart';
 
 class MainScreen extends StatefulWidget{
   const MainScreen({super.key});

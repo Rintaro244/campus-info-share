@@ -189,7 +189,7 @@ class _PastExamAddScreenState extends ConsumerState<PastExamAddScreen> {
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
                                 image: DecorationImage(
-                                  // 💡 修正ポイント3：Web環境とスマホ環境で画像の表示方法を自動で切り替える
+                                  // Web環境とスマホ環境で画像の表示方法を自動で切り替える
                                   image: kIsWeb 
                                       ? NetworkImage(_selectedImages[index].path) as ImageProvider
                                       : FileImage(File(_selectedImages[index].path)),

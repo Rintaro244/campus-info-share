@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'past/firebase_options.dart';
 
-// 💡 ご自身のプロジェクトの実際のファイル名（スネークケースなど）に合わせて適宜修正してください
 import 'mainscreen.dart'; 
-import 'past_exam_screen.dart'; 
+import 'past/past_exam_screen.dart'; 
 
 void main() async {
   // Flutterの初期化処理を確実に行うための決まり文句
@@ -17,7 +16,6 @@ void main() async {
   );
 
   runApp(
-    // Riverpodをアプリ全体で有効にするためのスコープ
     const ProviderScope(
       child: MyApp(),
     ),

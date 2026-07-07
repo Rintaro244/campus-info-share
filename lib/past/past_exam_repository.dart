@@ -23,7 +23,7 @@ class PastExamRepository {
         });
   }
 
-  // Web・スマホ両対応：引数を List<File> から List<XFile> に変更！
+  // 引数を List<File> から List<XFile> に変更！
   Future<List<String>> uploadFiles(List<XFile> files) async {
     List<String> imageUrls = [];
 

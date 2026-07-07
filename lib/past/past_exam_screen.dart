@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'past_exam.dart';
 import 'past_exam_controller.dart';
 import 'past_exam_add_screen.dart';
+import 'past_exam_detail_screen.dart';
 
 class PastExamListScreen extends ConsumerWidget {
   const PastExamListScreen({Key? key}) : super(key: key);
@@ -15,12 +16,13 @@ class PastExamListScreen extends ConsumerWidget {
     // スナックバー表示用のキーはローカル変数として定義（シンプル化）
     final messengerKey = GlobalKey<ScaffoldMessengerState>();
 
+    //ontap
     void onExamTap(PastExam exam) {
-      messengerKey.currentState?.removeCurrentSnackBar();
-      messengerKey.currentState?.showSnackBar(
-        SnackBar(
-          content: Text('「${exam.title}」を選択しました（擬似処理）'),
-          backgroundColor: Colors.green,
+      // 選ばれた過去問データ(exam)を持って、詳細画面へ移動する
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PastExamDetailScreen(exam: exam),
         ),
       );
     }
