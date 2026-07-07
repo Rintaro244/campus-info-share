@@ -69,6 +69,7 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
 
   late Campus _selectedCampus;
   String? _selectedCategory;
+  int _starRating = 5; // UC16: 投稿時の星評価（初期レビューとして登録）
   List<XFile> _selectedImages = [];
   LatLng? _selectedLocation;
   GoogleMapController? _mapController;
@@ -170,6 +171,7 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
         category: _selectedCategory!,
         description: _descriptionController.text.trim(),
         authorUid: uid,
+        starRating: _starRating,
         latitude: _selectedLocation?.latitude,
         longitude: _selectedLocation?.longitude,
         imageFiles: _selectedImages,
@@ -220,6 +222,8 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
                   _buildCategoryDropdown(),
                   const SizedBox(height: 16),
                   _buildDescriptionField(),
+                  const SizedBox(height: 16),
+                  _buildStarRatingField(),
                   const SizedBox(height: 16),
                   _buildLocationSection(),
                   const SizedBox(height: 24),
@@ -441,6 +445,37 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
           validator: (v) => (v == null || v.trim().isEmpty)
               ? 'おすすめポイントを入力してください'
               : null,
+        ),
+      ],
+    );
+  }
+
+  // UC16: 写真＋おすすめポイントに対する星評価。投稿時に初期レビューとして登録される。
+  Widget _buildStarRatingField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.star, size: 16, color: Colors.amber),
+            SizedBox(width: 4),
+            Text('おすすめ度',
+                style: TextStyle(fontWeight: FontWeight.w500)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: List.generate(5, (i) {
+            final star = i + 1;
+            return GestureDetector(
+              onTap: () => setState(() => _starRating = star),
+              child: Icon(
+                star <= _starRating ? Icons.star : Icons.star_border,
+                size: 32,
+                color: Colors.amber,
+              ),
+            );
+          }),
         ),
       ],
     );

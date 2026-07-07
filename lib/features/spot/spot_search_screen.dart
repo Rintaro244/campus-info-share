@@ -29,32 +29,39 @@ class _SpotSearchScreenState extends State<SpotSearchScreen> {
   String _selectedCampus = 'すべて';
   String _selectedCategory = 'すべて';
 
-  List<Spot> _spots = [];
+  // ネットワークから取得した全スポット（フィルタ前）。絞り込みはメモリ内で行う。
+  List<Spot> _allSpots = [];
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _loadSpots();
+    _fetchAllSpots();
   }
 
   // フィルタのキャンパスラベルを Campus?（すべて→null）に変換する
   Campus? get _campusFilter =>
       _selectedCampus == 'すべて' ? null : Campus.fromString(_selectedCampus);
 
-  Future<void> _loadSpots() async {
+  // 現在のフィルタ条件をメモリ内で適用した表示用リスト（ネットワーク不要）。
+  List<Spot> get _visibleSpots => _service.filterSpots(
+        _allSpots,
+        campus: _campusFilter,
+        keyword: _keyword,
+        category: _selectedCategory,
+      );
+
+  // Firestore からの取得は「初回」「投稿完了後」「エラー再読み込み」だけに限定する。
+  // キーワード/フィルタ変更は _visibleSpots のメモリ内絞り込みで即時応答する（§4.1 性能）。
+  Future<void> _fetchAllSpots() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
     try {
-      final spots = await _service.searchSpots(
-        campus: _campusFilter,
-        keyword: _keyword,
-        category: _selectedCategory,
-      );
-      setState(() => _spots = spots);
+      final spots = await _service.searchSpots();
+      setState(() => _allSpots = spots);
     } on NetworkException catch (e) {
       setState(() => _errorMessage = e.message);
     } finally {
@@ -76,8 +83,8 @@ class _SpotSearchScreenState extends State<SpotSearchScreen> {
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: (val) {
-                _keyword = val;
-                _loadSpots();
+                // メモリ内フィルタなので再取得せず setState のみ（§4.1 即時応答）
+                setState(() => _keyword = val);
               },
             ),
           ),
@@ -88,19 +95,13 @@ class _SpotSearchScreenState extends State<SpotSearchScreen> {
                 icon: Icons.school,
                 value: _selectedCampus,
                 options: _campusOptions,
-                onChanged: (v) {
-                  setState(() => _selectedCampus = v);
-                  _loadSpots();
-                },
+                onChanged: (v) => setState(() => _selectedCampus = v),
               ),
               _FilterDropdown(
                 icon: Icons.category,
                 value: _selectedCategory,
                 options: _categoryOptions,
-                onChanged: (v) {
-                  setState(() => _selectedCategory = v);
-                  _loadSpots();
-                },
+                onChanged: (v) => setState(() => _selectedCategory = v),
               ),
             ],
           ),
@@ -125,7 +126,7 @@ class _SpotSearchScreenState extends State<SpotSearchScreen> {
               ),
             ),
           );
-          if (created == true) _loadSpots();
+          if (created == true) _fetchAllSpots();
         },
         backgroundColor: Colors.blue[600],
         icon: const Icon(Icons.add, color: Colors.white),
@@ -147,14 +148,15 @@ class _SpotSearchScreenState extends State<SpotSearchScreen> {
             Text(_errorMessage!),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadSpots,
+              onPressed: _fetchAllSpots,
               child: const Text('再読み込み'),
             ),
           ],
         ),
       );
     }
-    if (_spots.isEmpty) {
+    final spots = _visibleSpots;
+    if (spots.isEmpty) {
       // データなし画面は空白にせず投稿を促す（要求仕様書 §4.2）
       return Center(
         child: Column(
@@ -183,8 +185,8 @@ class _SpotSearchScreenState extends State<SpotSearchScreen> {
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),
-          itemCount: _spots.length,
-          itemBuilder: (context, index) => _SpotCard(spot: _spots[index]),
+          itemCount: spots.length,
+          itemBuilder: (context, index) => _SpotCard(spot: spots[index]),
         );
       },
     );

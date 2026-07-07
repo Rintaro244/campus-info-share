@@ -31,17 +31,30 @@ class SpotService {
     final spots = campus == null
         ? await _postRepository.getAllSpots()
         : await _postRepository.getSpotsByCampus(campus);
+    return filterSpots(spots,
+        campus: campus, keyword: keyword, category: category);
+  }
 
+  // 取得済みのスポット一覧をメモリ内で絞り込む純関数（ネットワーク不要）。
+  // 検索画面はこれを使い、キーストローク毎の再取得を避けて即時に応答する（§4.1 性能）。
+  // campus が null は全キャンパス、category が null/''/'すべて' はカテゴリ絞り込み無し。
+  List<Spot> filterSpots(
+    List<Spot> spots, {
+    Campus? campus,
+    String keyword = '',
+    String? category,
+  }) {
     final kw = keyword.trim().toLowerCase();
     final hasCategory = category != null && category.isNotEmpty && category != 'すべて';
 
     return spots.where((s) {
+      final matchesCampus = campus == null || s.campus == campus;
       final matchesKeyword = kw.isEmpty ||
           s.spotName.toLowerCase().contains(kw) ||
           (s.description?.toLowerCase().contains(kw) ?? false) ||
           s.category.toLowerCase().contains(kw);
       final matchesCategory = !hasCategory || s.category == category;
-      return matchesKeyword && matchesCategory;
+      return matchesCampus && matchesKeyword && matchesCategory;
     }).toList();
   }
 
@@ -51,6 +64,7 @@ class SpotService {
     required Campus campus,
     required String category,
     required String authorUid,
+    required int starRating,
     String? description,
     double? latitude,
     double? longitude,
@@ -66,6 +80,9 @@ class SpotService {
     }
     if (category.isEmpty) {
       throw ValidationException('カテゴリを選択してください');
+    }
+    if (starRating < 1 || starRating > 5) {
+      throw ValidationException('星評価は1〜5で指定してください');
     }
 
     // 重複チェック（同キャンパス内の同名スポット）
@@ -97,7 +114,17 @@ class SpotService {
       imageUrls: imageUrls,
     );
 
-    return 'success';  
+    // UC16: 投稿者の初期レビュー（星評価＋おすすめポイント）を登録する。
+    // これで averageRating/reviewCount がトランザクションで初期化され、詳細のレビューにも表示される。
+    final reviewComment = (description ?? '').trim();
+    await _postRepository.addReview(
+      spotId: spotId,
+      starRating: starRating,
+      comment: reviewComment.isEmpty ? 'おすすめのスポットです' : reviewComment,
+      authorUid: authorUid,
+    );
+
+    return 'success';
   }
 
   // M6-3: スポット削除
