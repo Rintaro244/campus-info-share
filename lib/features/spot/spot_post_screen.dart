@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/spot.dart';
 import '../../repositories/map_api_client.dart';
 import '../../services/spot_service.dart';
-import '../../secrets.dart';
+//import '../../secrets.dart';
 import '../../shared/exceptions.dart';
 
 class SpotPostScreen extends StatefulWidget {
@@ -19,7 +19,7 @@ class SpotPostScreen extends StatefulWidget {
 
 class _SpotPostScreenState extends State<SpotPostScreen> {
   final _service = SpotService();
-  final _mapClient = MapApiClient(apiKey: googleMapsApiKey);
+  //final _mapClient = MapApiClient(apiKey: googleMapsApiKey);
   final _spotNameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
@@ -46,7 +46,7 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
     _spotNameController.dispose();
     _descriptionController.dispose();
     _addressController.dispose();
-    _mapClient.dispose();
+    //_mapClient.dispose();
     super.dispose();
   }
 
@@ -59,8 +59,8 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
     final address = _addressController.text.trim();
     if (address.isEmpty) return;
     try {
-      final result = await _mapClient.geocode(address);
-      setState(() => _selectedLocation = LatLng(result.latitude, result.longitude));
+      //final result = await _mapClient.geocode(address);
+      //setState(() => _selectedLocation = LatLng(result.latitude, result.longitude));
     } on AddressNotFoundException catch (e) {
       _showSnackBar(e.message);
     } on NetworkException catch (e) {

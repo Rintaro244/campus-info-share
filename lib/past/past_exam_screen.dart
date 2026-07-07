@@ -4,29 +4,40 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'past_exam.dart';
 import 'past_exam_controller.dart';
 import 'past_exam_add_screen.dart';
+import 'past_exam_detail_screen.dart';
 
-class PastExamListScreen extends ConsumerWidget {
+class PastExamListScreen extends ConsumerStatefulWidget {
   const PastExamListScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PastExamListScreen> createState() => _PastExamListScreenState();
+}
+
+class _PastExamListScreenState extends ConsumerState<PastExamListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  final GlobalKey<ScaffoldMessengerState> _messengerKey = GlobalKey<ScaffoldMessengerState>();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void onExamTap(PastExam exam) {
+    // 💡 詳細画面へ遷移するように修正済み
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PastExamDetailScreen(exam: exam),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final controller = ref.watch(pastExamControllerProvider);
 
-    // スナックバー表示用のキーはローカル変数として定義（シンプル化）
-    final messengerKey = GlobalKey<ScaffoldMessengerState>();
-
-    void onExamTap(PastExam exam) {
-      messengerKey.currentState?.removeCurrentSnackBar();
-      messengerKey.currentState?.showSnackBar(
-        SnackBar(
-          content: Text('「${exam.title}」を選択しました（擬似処理）'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    }
-
     return ScaffoldMessenger(
-      key: messengerKey,
+      key: _messengerKey,
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -34,10 +45,7 @@ class PastExamListScreen extends ConsumerWidget {
           backgroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+          automaticallyImplyLeading: false,
         ),
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -50,18 +58,17 @@ class PastExamListScreen extends ConsumerWidget {
                   const Text('キーワード検索', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 8),
                   TextField(
-                    // 💡 変更：Controller の updateSearchQuery を呼ぶだけ
+                    
+                    controller: _searchController,
                     onChanged: (value) => ref.read(pastExamControllerProvider).updateSearchQuery(value),
                     decoration: InputDecoration(
                       hintText: '例: 基礎数学、田中教授、期末試験',
                       prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                      // 💡 変更：Controller が持っている searchQuery を参照
                       suffixIcon: controller.searchQuery.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear, color: Colors.grey),
                               onPressed: () {
-                                // 💡 検索窓を空にして、Controllerに伝える処理（少し工夫が必要なため、後述の補足参照）
-                                // ここでは、Controller側で空文字を渡して更新させます
+                                _searchController.clear();
                                 ref.read(pastExamControllerProvider).updateSearchQuery('');
                               },
                             )
@@ -78,7 +85,6 @@ class PastExamListScreen extends ConsumerWidget {
                   const Text('年度フィルター', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    // 💡 変更：Controller の値を使う
                     value: controller.selectedYear,
                     items: controller.yearOptions.map((year) {
                       return DropdownMenuItem(
@@ -88,7 +94,6 @@ class PastExamListScreen extends ConsumerWidget {
                     }).toList(),
                     onChanged: (value) {
                       if (value != null) {
-                         // 💡 変更：Controller の updateSelectedYear を呼ぶだけ
                         ref.read(pastExamControllerProvider).updateSelectedYear(value);
                       }
                     },
@@ -111,13 +116,11 @@ class PastExamListScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
               child: Text(
-                // 💡 変更：Controller の filteredExams を使う
                 '検索結果: ${controller.filteredExams.length} 件',
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey),
               ),
             ),
 
-            // 💡 追加：データ読み込み中のぐるぐる（インジケータ）を表示
             Expanded(
               child: controller.isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -130,9 +133,9 @@ class PastExamListScreen extends ConsumerWidget {
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                          itemCount: controller.filteredExams.length, // 💡 変更
+                          itemCount: controller.filteredExams.length,
                           itemBuilder: (context, index) {
-                            final exam = controller.filteredExams[index]; // 💡 変更
+                            final exam = controller.filteredExams[index];
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 16.0),
                               child: InkWell(
@@ -199,16 +202,16 @@ class PastExamListScreen extends ConsumerWidget {
           ],
         ),
         floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.blue[600],
-        child: const Icon(Icons.add, color: Colors.white),
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const PastExamAddScreen(),
-            ),
-          );
-        },
-      ),
+          backgroundColor: Colors.blue[600],
+          child: const Icon(Icons.add, color: Colors.white),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const PastExamAddScreen(),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
