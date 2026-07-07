@@ -19,7 +19,7 @@ class _MarketPostScreenState extends State<MarketPostScreen> {
   String _selectedCampus = '豊洲';
   String _selectedCondition = '目立った傷や汚れなし';
 
-  Uint8List? _imageBytes; // 💡 画像データ保持
+  Uint8List? _imageBytes; 
   bool _isUploading = false;
 
   Future<void> _pickImage() async {
@@ -53,8 +53,8 @@ class _MarketPostScreenState extends State<MarketPostScreen> {
       campus: _selectedCampus,
       condition: _selectedCondition,
       description: desc,
-      imageBytes: _imageBytes, // 💡 画像をマネージャーに渡す
-      userId: 'dummy_user_123', // 💡 ユーザーIDを渡す（後で実装）
+      imageBytes: _imageBytes, 
+      userId: 'dummy_user_123', 
     );
 
     setState(() { _isUploading = false; });
@@ -77,7 +77,6 @@ class _MarketPostScreenState extends State<MarketPostScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // 💡 画像選択エリアを追加
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -91,7 +90,8 @@ class _MarketPostScreenState extends State<MarketPostScreen> {
                 child: _imageBytes != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.memory(_imageBytes!, fit: BoxFit.cover),
+                        // 💡 fitを contain に変更して見切れを防止
+                        child: Image.memory(_imageBytes!, fit: BoxFit.contain),
                       )
                     : const Column(
                         mainAxisAlignment: MainAxisAlignment.center,

@@ -16,13 +16,16 @@ class MarketDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 💡 商品画像表示エリア
             product.imageUrl != null && product.imageUrl!.isNotEmpty
-                ? Image.network(
-                    product.imageUrl!,
+                ? Container(
                     width: double.infinity,
-                    height: 300,
-                    fit: BoxFit.cover,
+                    height: 300, // 💡 高さを300に固定
+                    color: Colors.black87, // 💡 余白を黒にして画像を引き締める
+                    // 💡 fitを contain にして見切れを防止
+                    child: Image.network(
+                      product.imageUrl!,
+                      fit: BoxFit.contain,
+                    ),
                   )
                 : Container(
                     width: double.infinity,
@@ -38,21 +41,18 @@ class MarketDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 💡 価格
                   Text(
                     '¥${product.price}',
                     style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.red),
                   ),
                   const SizedBox(height: 8),
                   
-                  // 💡 商品タイトル
                   Text(
                     product.title,
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
 
-                  // 💡 タグ（キャンパス・状態）
                   Row(
                     children: [
                       Chip(
@@ -70,7 +70,6 @@ class MarketDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // 💡 商品の説明
                   const Text(
                     '商品の説明',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey),
@@ -80,6 +79,25 @@ class MarketDetailScreen extends StatelessWidget {
                   Text(
                     product.description,
                     style: const TextStyle(fontSize: 16, height: 1.5),
+                  ),
+
+                  const SizedBox(height: 40),
+                  // TODO(木幡さん): C4 取引・決済ロジックが完了したら、このボタンから決済処理(executePurchase等)の呼び出し連携をお願いします。
+                  ElevatedButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('購入手続き（決済ロジック連携待ち）')),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[600],
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text(
+                      '購入手続きへ進む',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),

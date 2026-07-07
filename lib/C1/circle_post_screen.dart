@@ -1,6 +1,6 @@
 // lib/C1/circle_post_screen.dart
 
-import 'dart:typed_data'; // 💡 追加
+import 'dart:typed_data'; 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../C3/circle_manager.dart'; 
@@ -18,14 +18,13 @@ class _CirclePostScreenState extends State<CirclePostScreen> {
   String _selectedCampus = '豊洲';
   String _selectedCategory = '運動系';
   
-  Uint8List? _imageBytes; // 💡 Fileではなく、汎用的なデータ(Uint8List)として保持
+  Uint8List? _imageBytes; 
   bool _isUploading = false; 
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      // 💡 スマホのファイルパスではなく、画像の中身（データ）を直接読み込む
       final bytes = await pickedFile.readAsBytes();
       setState(() {
         _imageBytes = bytes;
@@ -52,7 +51,8 @@ class _CirclePostScreenState extends State<CirclePostScreen> {
       category: _selectedCategory,
       description: desc,
       imageBytes: _imageBytes, 
-      userId: 'dummy_user_123', // 💡 読み込んだデータを渡す
+      
+      userId: 'dummy_user_123', 
     );
 
     setState(() { _isUploading = false; }); 
@@ -90,8 +90,8 @@ class _CirclePostScreenState extends State<CirclePostScreen> {
                 child: _imageBytes != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        // 💡 Image.file ではなく Image.memory を使うとWebでも表示可能！
-                        child: Image.memory(_imageBytes!, fit: BoxFit.cover),
+                        // 💡 fitを contain に変更して見切れを防止
+                        child: Image.memory(_imageBytes!, fit: BoxFit.contain),
                       )
                     : const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
