@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:uuid/uuid.dart';
@@ -13,14 +13,18 @@ class StorageRepository {
 
   /// スポット画像をアップロードし、ダウンロードURLを返す。
   /// ファイルが1MBを超える場合は自動圧縮する。
-  Future<String> uploadSpotImage(File imageFile, String spotId) async {
+  /// XFile（バイト列）で受け取ることで、Flutter Web（dart:ioのFileが使えない）にも対応する。
+  Future<String> uploadSpotImage(XFile imageFile, String spotId) async {
     try {
+      final bytes = await imageFile.readAsBytes();
       // 画像を圧縮する必要がある場合は圧縮する
-      final compressed = await _compressIfNeeded(imageFile);
+      final (compressed, contentType) =
+          await _compressIfNeeded(bytes, imageFile.name);
       final fileName = '${const Uuid().v4()}.jpg';
       final ref = _storage.ref('spots/$spotId/$fileName');
 
-      await ref.putFile(compressed);
+      // putData はputFileと違いファイルの中身からContent-Typeを自動判定しないため、明示的に指定する
+      await ref.putData(compressed, SettableMetadata(contentType: contentType));
       // アップロード後にダウンロードURLを取得して返す
       return await ref.getDownloadURL();
     } on ImageCompressionException {
@@ -46,13 +50,15 @@ class StorageRepository {
 
   /// 画像を1MB以下に圧縮する。対応フォーマットはjpg/png/webp。
   /// 圧縮後も1MBを超える場合は例外を投げる。
+  /// 戻り値はアップロード用のバイト列と、実際の中身に対応するContent-Typeの組。
   /// ここは共有メソッドとして、スポット機能以外でも使えるはず。
-  Future<File> _compressIfNeeded(File file) async {
-    final bytes = await file.readAsBytes();
-    // 1MB以下ならそのまま返す
-    if (bytes.length <= _maxBytes) return file;
+  Future<(Uint8List, String)> _compressIfNeeded(
+      Uint8List bytes, String fileName) async {
+    final ext = fileName.split('.').last.toLowerCase();
 
-    final ext = file.path.split('.').last.toLowerCase();
+    // 1MB以下ならそのまま返す（フォーマットは元のファイル拡張子から判定）
+    if (bytes.length <= _maxBytes) return (bytes, _mimeTypeFor(ext));
+
     if (!{'jpg', 'jpeg', 'png', 'webp'}.contains(ext)) {
       throw UnsupportedFormatException('対応フォーマット: jpg/png/webp');
     }
@@ -66,11 +72,17 @@ class StorageRepository {
         format: CompressFormat.jpeg,
       );
       if (result.length <= _maxBytes) {
-        final tmpPath = '${file.parent.path}/compressed_${file.uri.pathSegments.last}';
-        return File(tmpPath)..writeAsBytesSync(result);
+        // compressWithList は常にjpegとして出力するため、Content-Typeもjpegに揃える
+        return (result, 'image/jpeg');
       }
     }
 
     throw ImageCompressionException('画像を1MB以下に圧縮できませんでした');
   }
+
+  String _mimeTypeFor(String ext) => switch (ext) {
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        _ => 'image/jpeg',
+      };
 }
