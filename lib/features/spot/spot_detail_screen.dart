@@ -129,7 +129,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('W16へ戻る'),
+                child: const Text('一覧へ戻る'),
               ),
             ],
           ),

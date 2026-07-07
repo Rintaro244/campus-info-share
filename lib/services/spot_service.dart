@@ -20,15 +20,29 @@ class SpotService {
         _storageRepository = storageRepository ?? StorageRepository();
 
   // M6-1: スポット検索
-  Future<List<Spot>> searchSpots(
-    Campus campus, {
-    String sortBy = 'newly_created',
+  // campus が null の場合は全キャンパス対象（検索画面フィルタ「すべて」）。
+  // keyword はスポット名・おすすめポイント・カテゴリを対象に部分一致（クライアント側）。
+  // category が null または 'すべて' の場合はカテゴリで絞り込まない。
+  Future<List<Spot>> searchSpots({
+    Campus? campus,
+    String keyword = '',
+    String? category,
   }) async {
-    final spots = await _postRepository.getSpotsByCampus(campus);
-    if (sortBy == 'rating_desc') {
-      // TODO: 評価順ソートは別途実装予定
-    }
-    return spots;
+    final spots = campus == null
+        ? await _postRepository.getAllSpots()
+        : await _postRepository.getSpotsByCampus(campus);
+
+    final kw = keyword.trim().toLowerCase();
+    final hasCategory = category != null && category.isNotEmpty && category != 'すべて';
+
+    return spots.where((s) {
+      final matchesKeyword = kw.isEmpty ||
+          s.spotName.toLowerCase().contains(kw) ||
+          (s.description?.toLowerCase().contains(kw) ?? false) ||
+          s.category.toLowerCase().contains(kw);
+      final matchesCategory = !hasCategory || s.category == category;
+      return matchesKeyword && matchesCategory;
+    }).toList();
   }
 
   // M6-2: スポット投稿
