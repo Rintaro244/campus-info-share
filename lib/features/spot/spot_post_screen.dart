@@ -72,6 +72,28 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
     }
   }
 
+  // フォーム内の小さい地図ではクリックしづらいため、全画面のピッカーで位置を調整する
+  Future<void> _openMapPicker() async {
+    final result = await Navigator.push<LatLng>(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _MapPickerScreen(
+          mapClient: _mapClient,
+          initialTarget: _selectedLocation ??
+              LatLng(_selectedCampus.defaultLatitude,
+                  _selectedCampus.defaultLongitude),
+          initialPin: _selectedLocation,
+        ),
+      ),
+    );
+    if (result != null) {
+      setState(() => _selectedLocation = result);
+      await _mapController
+          ?.animateCamera(CameraUpdate.newLatLngZoom(result, 16));
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedImages.isEmpty) {
@@ -79,7 +101,7 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
       return;
     }
     if (_selectedLocation == null) {
-      _showSnackBar('地図をタップしてスポットの位置を指定してください');
+      _showSnackBar('地図をクリックしてスポットの位置を指定してください');
       return;
     }
     final uid = FirebaseAuth.instance.currentUser?.uid ?? 'test-user';
@@ -385,54 +407,103 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
           ],
         ),
         const SizedBox(height: 6),
+        // 主要導線：住所・施設名で検索（Web利用者はほぼこちらを使う想定）
         Row(
           children: [
             Expanded(
               child: TextField(
                 controller: _addressController,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _geocodeAddress(),
                 decoration: const InputDecoration(
-                  hintText: '住所を入力して検索',
+                  hintText: '住所・施設名を入力',
+                  prefixIcon: Icon(Icons.search),
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.search),
-              onPressed: _geocodeAddress,
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 44,
+              child: ElevatedButton(
+                onPressed: _geocodeAddress,
+                child: const Text('検索'),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        const Text('地図をタップするとピンを置けます',
-            style: TextStyle(fontSize: 11, color: Colors.grey)),
         const SizedBox(height: 8),
+        // プレビュー地図：確認用。細かい調整は右下ボタンから全画面で行う
         SizedBox(
           width: double.infinity,
-          height: 160,
+          height: 200,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: _selectedLocation ??
-                    LatLng(_selectedCampus.defaultLatitude,
-                        _selectedCampus.defaultLongitude),
-                zoom: 16,
-              ),
-              onMapCreated: (controller) => _mapController = controller,
-              markers: _selectedLocation == null
-                  ? {}
-                  : {
-                      Marker(
-                        markerId: const MarkerId('pin'),
-                        position: _selectedLocation!,
+            child: Stack(
+              children: [
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: _selectedLocation ??
+                        LatLng(_selectedCampus.defaultLatitude,
+                            _selectedCampus.defaultLongitude),
+                    zoom: 16,
+                  ),
+                  onMapCreated: (controller) => _mapController = controller,
+                  markers: _selectedLocation == null
+                      ? {}
+                      : {
+                          Marker(
+                            markerId: const MarkerId('pin'),
+                            position: _selectedLocation!,
+                          ),
+                        },
+                  onTap: (pos) => setState(() => _selectedLocation = pos),
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                ),
+                // 全画面ピッカーを開くボタン（小さい地図でのクリック操作を回避）
+                Positioned(
+                  right: 8,
+                  bottom: 8,
+                  child: Material(
+                    color: Colors.white,
+                    elevation: 2,
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: _openMapPicker,
+                      child: const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.open_in_full,
+                                size: 16, color: Colors.blue),
+                            SizedBox(width: 4),
+                            Text('地図を拡大して調整',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.w500)),
+                          ],
+                        ),
                       ),
-                    },
-              onTap: (pos) => setState(() => _selectedLocation = pos),
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _selectedLocation == null
+              ? '住所で検索するか、地図を拡大してピンを置いてください'
+              : 'ピンの位置：${_selectedLocation!.latitude.toStringAsFixed(5)}, '
+                  '${_selectedLocation!.longitude.toStringAsFixed(5)}',
+          style: const TextStyle(fontSize: 11, color: Colors.grey),
         ),
       ],
     );
@@ -459,6 +530,149 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
               )
             : const Text('＋ 投稿する',
                 style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+}
+
+// 全画面の地図ピッカー：住所検索と大きな地図でピンを置き、確定した座標を返す。
+// フォーム内の小さい地図ではクリックしづらい問題を解消するための画面。
+class _MapPickerScreen extends StatefulWidget {
+  final MapApiClient mapClient;
+  final LatLng initialTarget;
+  final LatLng? initialPin;
+
+  const _MapPickerScreen({
+    required this.mapClient,
+    required this.initialTarget,
+    this.initialPin,
+  });
+
+  @override
+  State<_MapPickerScreen> createState() => _MapPickerScreenState();
+}
+
+class _MapPickerScreenState extends State<_MapPickerScreen> {
+  final _addressController = TextEditingController();
+  GoogleMapController? _controller;
+  LatLng? _pin;
+
+  @override
+  void initState() {
+    super.initState();
+    _pin = widget.initialPin;
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search() async {
+    final address = _addressController.text.trim();
+    if (address.isEmpty) return;
+    try {
+      final result = await widget.mapClient.geocode(address);
+      final location = LatLng(result.latitude, result.longitude);
+      setState(() => _pin = location);
+      await _controller
+          ?.animateCamera(CameraUpdate.newLatLngZoom(location, 17));
+    } on AddressNotFoundException catch (e) {
+      _showSnackBar(e.message);
+    } on NetworkException catch (e) {
+      _showSnackBar(e.message);
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('地図で位置を指定')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _addressController,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => _search(),
+                    decoration: const InputDecoration(
+                      hintText: '住所・施設名を入力',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: _search,
+                    child: const Text('検索'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('地図をクリックしてピンを置いてください',
+                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _pin ?? widget.initialTarget,
+                zoom: 16,
+              ),
+              onMapCreated: (c) => _controller = c,
+              markers: _pin == null
+                  ? {}
+                  : {
+                      Marker(
+                        markerId: const MarkerId('pin'),
+                        position: _pin!,
+                      ),
+                    },
+              onTap: (pos) => setState(() => _pin = pos),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  onPressed:
+                      _pin == null ? null : () => Navigator.pop(context, _pin),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('この位置に決定',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
