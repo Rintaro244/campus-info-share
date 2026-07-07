@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'profile_edit_screen.dart'; // さっき作った画面をインポート
+import 'package:student_information_1/C3/user_manager.dart';
+import 'profile_edit_screen.dart'; 
+// 💡 先ほど作ったマネージャーをインポート（パスは環境に合わせて調整してください）
+import '../C3/circle_manager.dart'; 
+import '../C3/market_manager.dart'; 
 
-// 💡 動かすために StatelessWidget から StatefulWidget に変更しました！
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
@@ -10,23 +13,46 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // 💡 リストをState（状態）として管理することで、中身を削除できるようになります
-  final List<Map<String, String>> dummyPosts = [
-    {'title': '【譲ります】基本情報技術者試験の参考書', 'date': '2026/06/12', 'category': '教材'},
-    {'title': 'テニスサークル 今週の練習はお休みです 🎾', 'date': '2026/06/10', 'category': 'サークル'},
-    {'title': '【求む】2年の情報数学演習の過去問持ってる人いませんか', 'date': '2026/06/08', 'category': '過去問'},
-    {'title': '大宮キャンパス周辺のおすすめラーメン屋まとめ 🍜', 'date': '2026/06/05', 'category': '周辺情報'},
-  ];
+  // 💡 ダミーデータの代わりに、本物のデータを格納する空のリストを用意
+  List<Map<String, dynamic>> _myPosts = [];
+  String _userName = ''; // 💡 ユーザー名を格納する変数
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData(); // 画面が開かれたときに本物のデータを取得！
+  }
+
+  // 🎁 本物のデータをFirestoreから取得して合体させる関数
+  Future<void> _fetchUserData() async {
+    setState(() { _isLoading = true; });
+
+    const targetUserId = 'dummy_user_123'; 
+
+    // 💡 ユーザー名を取得
+    final fetchedName = await UserManager().fetchUserName(targetUserId);
+
+    final circles = await CircleManager().fetchMyCircles(targetUserId);
+    final products = await MarketManager().fetchMyProducts(targetUserId);
+
+    final List<Map<String, dynamic>> combinedPosts = [];
+    for (var c in circles) { combinedPosts.add({'id': c.id, 'title': c.name, 'category': 'サークル', 'date': '登録済み', 'type': 'circle', 'imageUrl': c.imageUrl}); }
+    for (var p in products) { combinedPosts.add({'id': p.id, 'title': p.title, 'category': '教材', 'date': '出品済み', 'type': 'market', 'imageUrl': p.imageUrl}); }
+
+    setState(() {
+      _userName = fetchedName; // 💡 取得した名前をセット
+      _myPosts = combinedPosts;
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'プロフィール',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-        ),
+        title: const Text('プロフィール', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -44,31 +70,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             backgroundColor: Colors.grey[200],
             child: const Icon(Icons.person, size: 50, color: Colors.grey),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            '芝浦 太郎',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
+          Text(_userName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: OutlinedButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileEditScreen(),
-                  ),
+              onPressed: () async {
+                final result = await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => ProfileEditScreen(currentName: _userName)),
                 );
+                if (result == true) {
+                  _fetchUserData(); // 💡 プロフィール編集後に最新のデータを取得
+                }
               },
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: Colors.grey[300]!),
                 minimumSize: const Size(double.infinity, 40),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
-              child: const Text(
-                'プロフィールを編集',
-                style: TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold),
-              ),
+              child: const Text('プロフィールを編集', style: TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold)),
             ),
           ),
           const SizedBox(height: 24),
@@ -89,26 +109,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Icon(Icons.list_alt, size: 20, color: Colors.grey[600]),
                         const SizedBox(width: 8),
                         Text(
-                          '過去の投稿 (${dummyPosts.length}件)',
+                          '過去の投稿 (${_myPosts.length}件)',
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.grey[700]),
                         ),
                       ],
                     ),
                   ),
                   
-                  // 💡 リストの表示部分（0件の時はエラーメッセージを表示する設計書仕様）
+                  // 💡 読み込み中くるくる ＆ リスト表示部分
                   Expanded(
-                    child: dummyPosts.isEmpty
+                    child: _isLoading 
+                      ? const Center(child: CircularProgressIndicator())
+                      : _myPosts.isEmpty
                         ? const Center(
-                            child: Text(
-                              '過去の投稿はありません', // 内部設計書の指定メッセージ
-                              style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w500),
-                            ),
+                            child: Text('過去の投稿はありません', style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w500)),
                           )
                         : ListView.builder(
-                            itemCount: dummyPosts.length,
+                            itemCount: _myPosts.length,
                             itemBuilder: (context, index) {
-                              final post = dummyPosts[index];
+                              final post = _myPosts[index];
                               return Card(
                                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                                 elevation: 0,
@@ -119,10 +138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: ListTile(
                                   leading: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue[50],
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
+                                    decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(4)),
                                     child: Text(
                                       post['category']!,
                                       style: TextStyle(color: Colors.blue[700], fontSize: 11, fontWeight: FontWeight.bold),
@@ -134,74 +150,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  subtitle: Text(
-                                    post['date']!,
-                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                                  ),
+                                  subtitle: Text(post['date']!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
                                   trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
                                   onTap: () {
-                                    // 投稿がタップされたら詳細ダイアログを表示
                                     showDialog(
                                       context: context,
                                       builder: (BuildContext context) {
                                         return AlertDialog(
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(16),
-                                          ),
-                                          title: Row(
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.blue[50],
-                                                  borderRadius: BorderRadius.circular(4),
-                                                ),
-                                                child: Text(
-                                                  post['category']!,
-                                                  style: TextStyle(color: Colors.blue[700], fontSize: 12, fontWeight: FontWeight.bold),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              const Text('投稿の詳細', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                            ],
-                                          ),
-                                          content: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                post['title']!,
-                                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                                              ),
-                                              const SizedBox(height: 12),
-                                              Text(
-                                                '投稿日: ${post['date']!}',
-                                                style: const TextStyle(fontSize: 13, color: Colors.grey),
-                                              ),
-                                              const SizedBox(height: 16),
-                                              const Text(
-                                                '※ここに投稿の本文の全体像が詳しく表示されます。設計書に合わせてテキストの量や見た目を調整していきます。',
-                                                style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.4),
-                                              ),
-                                            ],
-                                          ),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                          title: Text('投稿の削除', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                          content: Text('「${post['title']}」を本当に削除しますか？\n（※この操作は取り消せません）'),
                                           actions: [
                                             TextButton(
                                               onPressed: () => Navigator.of(context).pop(),
-                                              child: const Text('閉じる', style: TextStyle(color: Colors.grey)),
+                                              child: const Text('キャンセル', style: TextStyle(color: Colors.grey)),
                                             ),
                                             TextButton(
-                                              onPressed: () {
-                                                // 💡 ここがポイント！setStateを使って画面をリアルタイムに書き換えます
-                                                setState(() {
-                                                  dummyPosts.removeAt(index); // リストからこの投稿を消し去る
-                                                });
-                                                
-                                                Navigator.of(context).pop(); // ダイアログを閉じる
-                                                
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('「${post['title']}」を削除しました（擬似処理）')),
-                                                );
+                                              onPressed: () async {
+                                                // 🗑️ 本物の削除処理！
+                                                final postId = post['id'];
+                                                final postType = post['type'];
+                                                final imageUrl = post['imageUrl'];
+
+                                                if (postType == 'circle') {
+                                                  await CircleManager().deleteCircle(postId, imageUrl);
+                                                } else if (postType == 'market') {
+                                                  await MarketManager().deleteProduct(postId, imageUrl);
+                                                }
+
+                                                // ダイアログを閉じて、リストを再取得（更新）
+                                                if (context.mounted) {
+                                                  Navigator.of(context).pop();
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(content: Text('「${post['title']}」を削除しました')),
+                                                  );
+                                                  _fetchUserData(); // 💡 削除後にリストを最新状態にする
+                                                }
                                               },
                                               child: const Text('削除する', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                                             ),
@@ -221,33 +205,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      // 💡 ログアウトボタンも設計書に合わせて確認ダイアログが出るように変更しました！
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('ログアウト'),
-              content: const Text('本当にログアウトしますか？'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('キャンセル'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    print("ログアウトしました");
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('ログアウトしました')),
-                    );
-                  },
-                  child: const Text('ログアウト', style: TextStyle(color: Colors.red)),
-                ),
-              ],
-            ),
-          );
-        },
+        onPressed: () { /* ログアウト処理は省略 */ },
         backgroundColor: Colors.red[400],
         elevation: 4,
         icon: const Icon(Icons.logout, color: Colors.white),

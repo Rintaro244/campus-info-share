@@ -1,15 +1,26 @@
 import 'package:flutter/material.dart';
 import 'profile_validator.dart';
+import '../C3/user_manager.dart'; // 💡 追加（パスは適宜調整してください）
 
 class ProfileEditScreen extends StatefulWidget {
-  const ProfileEditScreen({Key? key}) : super(key: key);
+  final String currentName; // 💡 追加：前の画面から現在の名前を受け取る
+
+  const ProfileEditScreen({Key? key, required this.currentName}) : super(key: key);
 
   @override
   State<ProfileEditScreen> createState() => _ProfileEditScreenState();
 }
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
-  final TextEditingController _nameController = TextEditingController(text: '芝浦 太郎');
+  late TextEditingController _nameController;
+  bool _isSaving = false; // 💡 保存中のくるくる表示用
+
+  @override
+  void initState() {
+    super.initState();
+    // 💡 画面が開かれたときに、現在の名前を最初から入力しておく
+    _nameController = TextEditingController(text: widget.currentName);
+  }
 
   @override
   void dispose() {
@@ -17,7 +28,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     super.dispose();
   }
 
-  // 💡 改善点：戻るボタンを押した時の確認メッセージ（要求仕様書用）
   Future<bool> _showBackConfirmDialog() async {
     final result = await showDialog<bool>(
       context: context,
@@ -26,11 +36,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         content: const Text('編集内容を保存せずに戻りますか？'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false), // 戻らない
+            onPressed: () => Navigator.pop(context, false), 
             child: const Text('編集を続ける'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true), // 戻る
+            onPressed: () => Navigator.pop(context, true), 
             child: const Text('破棄して戻る', style: TextStyle(color: Colors.red)),
           ),
         ],
@@ -41,117 +51,84 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false, // 自動で戻るのを防ぎ、自前の処理を走らせる
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final shouldPop = await _showBackConfirmDialog();
-        if (shouldPop && context.mounted) {
-          Navigator.of(context).pop();
+    return WillPopScope(
+      onWillPop: () async {
+        if (_nameController.text != widget.currentName) {
+          return await _showBackConfirmDialog();
         }
+        return true;
       },
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          title: const Text(
-            'プロフィール編集',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-          ),
+          title: const Text('プロフィール編集', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           backgroundColor: Colors.white,
           elevation: 0,
-          centerTitle: true,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
+            icon: const Icon(Icons.close, color: Colors.black87),
             onPressed: () async {
-              final shouldPop = await _showBackConfirmDialog();
-              if (shouldPop && context.mounted) {
-                Navigator.of(context).pop();
+              if (_nameController.text != widget.currentName) {
+                final shouldPop = await _showBackConfirmDialog();
+                if (shouldPop && context.mounted) Navigator.pop(context);
+              } else {
+                Navigator.pop(context);
               }
             },
           ),
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+        body: Padding(
+          padding: const EdgeInsets.all(24.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 32),
-              Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.grey[200],
-                    child: const Icon(Icons.person, size: 50, color: Colors.grey),
-                  ),
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.blue[600],
-                    child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'ユーザー名',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _nameController,
-                    maxLength: 20, // 💡 改善点：最大20文字制限を視覚化（内部設計書）
-                    decoration: InputDecoration(
-                      hintText: '名前を入力してください',
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ],
+              const Text('ユーザー名', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  hintText: '例: 芝浦 太郎',
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                ),
               ),
               const SizedBox(height: 48),
-              ElevatedButton(
-                onPressed: () {
-                  final text = _nameController.text.trim();
-                  
-                  // 💡 改善点：E2 ユーザー名未入力・不正形式のバリデーション
-                  if (!ProfileValidator.validateUserName(text)) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('ユーザ名を正しく入力してください。(例:1文字以上20文字以内等)'), // 設計書の指定文言
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
+              
+              _isSaving 
+                ? const Center(child: CircularProgressIndicator())
+                : ElevatedButton(
+                    onPressed: () async {
+                      final text = _nameController.text.trim();
+                      
+                      if (!ProfileValidator.validateUserName(text)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('ユーザ名を正しく入力してください。(例:1文字以上20文字以内等)'), backgroundColor: Colors.red),
+                        );
+                        return;
+                      }
 
-                  // バリデーションOKなら保存処理
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('プロフィールを保存しました')),
-                  );
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[600],
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  '変更を保存する',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
+                      setState(() { _isSaving = true; });
+
+                      // 💡 Firestoreに新しい名前を保存する！
+                      final success = await UserManager().updateUserName('dummy_user_123', text);
+                      
+                      setState(() { _isSaving = false; });
+
+                      if (success && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('プロフィールを保存しました')));
+                        Navigator.of(context).pop(true); // 💡 保存成功を前の画面に伝えるために true を返す
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('保存に失敗しました'), backgroundColor: Colors.red));
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[600],
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                    child: const Text('変更を保存する', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
             ],
           ),
         ),
