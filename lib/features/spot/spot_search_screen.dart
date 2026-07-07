@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/spot.dart';
 import '../../services/spot_service.dart';
@@ -109,6 +110,13 @@ class _SpotSearchScreenState extends State<SpotSearchScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
+          // 投稿画面に入る前にログイン判定（未ログインなら遷移させない）
+          if (FirebaseAuth.instance.currentUser == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('投稿するにはログインが必要です')),
+            );
+            return;
+          }
           final created = await Navigator.push<bool>(
             context,
             MaterialPageRoute(

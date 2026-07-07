@@ -156,12 +156,12 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
       _showSnackBar('地図をクリックしてスポットの位置を指定してください');
       return;
     }
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'test-user';
-    // if (uid == null) {
-    //   _showSnackBar('ログインが必要です');
-    //   if (mounted) Navigator.pop(context);
-    //   return;
-    // }
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      _showSnackBar('ログインが必要です');
+      if (mounted) Navigator.pop(context);
+      return;
+    }
     setState(() => _isSubmitting = true);
     try {
       await _service.postSpot(
