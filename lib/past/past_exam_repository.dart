@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart'; // 💡 Uint8List（バイトデータ）を使うために追加
-import 'package:image_picker/image_picker.dart'; // 💡 File の代わりに XFile を使うために追加
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'past_exam.dart';
 
@@ -53,8 +53,25 @@ class PastExamRepository {
     await _firestore.collection('past_exams').add(exam.toFirestore());
   }
 
-  Future<void> deletePastExam(String pastexamId) async {
-    // Firestoreの「past_exams」コレクションから、指定されたIDのデータを削除する
-    await _firestore.collection('past_exams').doc(pastexamId).delete();
+  Future<bool> deletePastExam(String pastexamId, List<String> imageUrls) async {
+    try {
+      // 1. Firestoreから文字データを消す
+      await _firestore.collection('past_exams').doc(pastexamId).delete();
+      
+      // 2. Storageから画像データもすべて消す（ゴミが残らない親切設計！）
+      for (final url in imageUrls) {
+        if (url.isNotEmpty) {
+          try {
+            await FirebaseStorage.instance.refFromURL(url).delete();
+          } catch (e) {
+            print('画像削除エラー(無視してOK): $e');
+          }
+        }
+      }
+      return true;
+    } catch (e) {
+      print('【過去問ロジック】削除エラー: $e');
+      return false;
+    }
   }
 }

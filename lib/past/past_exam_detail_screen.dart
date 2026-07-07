@@ -51,7 +51,7 @@ class PastExamDetailScreen extends ConsumerWidget {
               );
 
               if (confirm == true) {
-                await ref.read(pastExamControllerProvider).deleteExam(exam.pastexamId); 
+                await ref.read(pastExamControllerProvider).deleteExam(exam.pastexamId, exam.fileUrls); 
                 
                 if (context.mounted) {
                   Navigator.of(context).pop();

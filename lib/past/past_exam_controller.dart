@@ -142,10 +142,10 @@ class PastExamController extends ChangeNotifier {
   // ==========================================
   // 5. 削除処理
   // ==========================================
-  Future<bool> deleteExam(String pastexamId) async {
+  Future<bool> deleteExam(String pastexamId, List<String> imageUrls) async {
     try {
-      await _repository.deletePastExam(pastexamId);
-      return true;
+      final success = await _repository.deletePastExam(pastexamId, imageUrls);
+      return success;
     } catch (e) {
       print("削除エラー: $e");
       return false;
