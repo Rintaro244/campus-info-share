@@ -9,6 +9,48 @@ import '../../services/spot_service.dart';
 import '../../secrets.dart';
 import '../../shared/exceptions.dart';
 
+// 場所検索の候補をボトムシートで表示し、選ばれた1件を返す（複数ヒット時に使用）。
+// 投稿画面・地図ピッカーの両方から使う共通ヘルパー。
+Future<PlaceCandidate?> showPlaceCandidateSheet(
+  BuildContext context,
+  List<PlaceCandidate> candidates,
+) {
+  return showModalBottomSheet<PlaceCandidate>(
+    context: context,
+    builder: (sheetContext) {
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('候補から選んでください',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: candidates.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  final c = candidates[i];
+                  return ListTile(
+                    leading: const Icon(Icons.place, color: Colors.red),
+                    title: Text(c.name),
+                    subtitle: c.address.isEmpty ? null : Text(c.address),
+                    onTap: () => Navigator.pop(sheetContext, c),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 class SpotPostScreen extends StatefulWidget {
   final Campus initialCampus;
   const SpotPostScreen({super.key, this.initialCampus = Campus.toyosu});
@@ -56,12 +98,22 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
     if (images.isNotEmpty) setState(() => _selectedImages = images);
   }
 
-  Future<void> _geocodeAddress() async {
-    final address = _addressController.text.trim();
-    if (address.isEmpty) return;
+  Future<void> _searchLocation() async {
+    final query = _addressController.text.trim();
+    if (query.isEmpty) return;
     try {
-      final result = await _mapClient.geocode(address);
-      final location = LatLng(result.latitude, result.longitude);
+      // 店名の部分入力でも当たるよう Places 検索を使い、候補から選ばせる
+      final candidates = await _mapClient.searchPlaces(
+        query,
+        biasLat: _selectedCampus.defaultLatitude,
+        biasLng: _selectedCampus.defaultLongitude,
+      );
+      if (!mounted) return;
+      final chosen = candidates.length == 1
+          ? candidates.first
+          : await showPlaceCandidateSheet(context, candidates);
+      if (chosen == null) return;
+      final location = LatLng(chosen.latitude, chosen.longitude);
       setState(() => _selectedLocation = location);
       await _mapController
           ?.animateCamera(CameraUpdate.newLatLngZoom(location, 16));
@@ -414,9 +466,9 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
               child: TextField(
                 controller: _addressController,
                 textInputAction: TextInputAction.search,
-                onSubmitted: (_) => _geocodeAddress(),
+                onSubmitted: (_) => _searchLocation(),
                 decoration: const InputDecoration(
-                  hintText: '住所・施設名を入力',
+                  hintText: '店名・施設名・住所で検索',
                   prefixIcon: Icon(Icons.search),
                   border: OutlineInputBorder(),
                   isDense: true,
@@ -427,7 +479,7 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
             SizedBox(
               height: 44,
               child: ElevatedButton(
-                onPressed: _geocodeAddress,
+                onPressed: _searchLocation,
                 child: const Text('検索'),
               ),
             ),
@@ -570,11 +622,20 @@ class _MapPickerScreenState extends State<_MapPickerScreen> {
   }
 
   Future<void> _search() async {
-    final address = _addressController.text.trim();
-    if (address.isEmpty) return;
+    final query = _addressController.text.trim();
+    if (query.isEmpty) return;
     try {
-      final result = await widget.mapClient.geocode(address);
-      final location = LatLng(result.latitude, result.longitude);
+      final candidates = await widget.mapClient.searchPlaces(
+        query,
+        biasLat: widget.initialTarget.latitude,
+        biasLng: widget.initialTarget.longitude,
+      );
+      if (!mounted) return;
+      final chosen = candidates.length == 1
+          ? candidates.first
+          : await showPlaceCandidateSheet(context, candidates);
+      if (chosen == null) return;
+      final location = LatLng(chosen.latitude, chosen.longitude);
       setState(() => _pin = location);
       await _controller
           ?.animateCamera(CameraUpdate.newLatLngZoom(location, 17));
@@ -606,7 +667,7 @@ class _MapPickerScreenState extends State<_MapPickerScreen> {
                     textInputAction: TextInputAction.search,
                     onSubmitted: (_) => _search(),
                     decoration: const InputDecoration(
-                      hintText: '住所・施設名を入力',
+                      hintText: '店名・施設名・住所で検索',
                       prefixIcon: Icon(Icons.search),
                       border: OutlineInputBorder(),
                       isDense: true,
