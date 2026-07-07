@@ -1,20 +1,20 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart'; 
 
-//同じフォルダ(lib)にあるファイルを読み込む
+// 同じフォルダ(lib)にあるファイルを読み込む
 import 'past_exam.dart';
 import 'past_exam_repository.dart';
 
-//アプリのどこからでもControllerを呼び出せるようにする「プロバイダー（Riverpod）」
+// アプリのどこからでもControllerを呼び出せるようにする「プロバイダー（Riverpod）」
 final pastExamControllerProvider = ChangeNotifierProvider((ref) {
   return PastExamController();
 });
 
 /// 画面の状態を管理し、検索や投稿のロジックを担当するController
 class PastExamController extends ChangeNotifier {
-  //いったんコメントアウト
-  // final PastExamRepository _repository = PastExamRepository();
+  // Repository（Firebase通信係）のインスタンス化
+  final PastExamRepository _repository = PastExamRepository();
 
   // ==========================================
   // 1. 画面に表示するためのデータ（状態）
@@ -37,41 +37,36 @@ class PastExamController extends ChangeNotifier {
   }
 
   void _listenToExams() {
-// エラー回避用：Firebaseの監視をストップし、ダミーデータを手動で入れる
-    /* --- 元の通信コードは一旦コメントアウト（/* */ で囲んで無効化） ---
+    isLoading = true;
+    notifyListeners();
+
+    // RepositoryのStream（リアルタイム通信）を購読
     _repository.getPastExamsStream().listen((exams) {
-      // ... (元の処理)
+      allExams = exams;
+      
+      // データから重複のない年度を抽出し、降順ソート
+      final years = allExams
+          .map((exam) => exam.year.toString())
+          .toSet()
+          .toList()
+        ..sort((a, b) => b.compareTo(a));
+      
+      yearOptions = ['すべて', ...years];
+      
+      // 選択中の年度がデータから消えた場合のセーフティ
+      if (!yearOptions.contains(selectedYear)) {
+        selectedYear = 'すべて';
+      }
+
+      isLoading = false;
+      
+      // データが届いたり更新されたら、自動でフィルターをかけ直す
+      filterExams(); 
+    }, onError: (error) {
+      print("Firestore監視エラー: $error");
+      isLoading = false;
+      notifyListeners();
     });
-    -------------------------------------------------------------- */
-
-    // 💡 UI確認用のダミーデータを直接代入
-    allExams = [
-      PastExam(
-        pastexamId: 'dummy1',
-        title: 'プログラミング基礎 期末テスト',
-        year: 2024,
-        subjectName: 'プログラミング基礎',
-        professorName: '鳩山 太郎',
-        fileUrls: [], // 画像なし
-        createdAt: DateTime.now(),
-        userId: 'test_user',
-      ),
-      PastExam(
-        pastexamId: 'dummy2',
-        title: 'ネットワーク論 中間',
-        year: 2023,
-        subjectName: 'ネットワーク論',
-        professorName: '電大 次郎',
-        fileUrls: [],
-        createdAt: DateTime.now(),
-        userId: 'test_user',
-      ),
-    ];
-
-    // ダミーの年度選択肢を用意
-    yearOptions = ['すべて', '2024', '2023', '2022'];
-    isLoading = false;
-    filterExams(); // 画面を更新
   }
 
   // ==========================================
@@ -90,7 +85,6 @@ class PastExamController extends ChangeNotifier {
   void filterExams() {
     final query = searchQuery.trim().toLowerCase();
 
-    // 既存の美しい検索ロジックを移植
     filteredExams = allExams.where((exam) {
       final matchesQuery = exam.title.toLowerCase().contains(query) ||
           exam.subjectName.toLowerCase().contains(query) ||
@@ -101,7 +95,6 @@ class PastExamController extends ChangeNotifier {
       return matchesQuery && matchesYear;
     }).toList();
 
-    // 画面に「データが変わったから再描画して！」と伝える
     notifyListeners();
   }
 
@@ -113,31 +106,49 @@ class PastExamController extends ChangeNotifier {
     required int year,
     required String subjectName,
     required String professorName,
-    required List<File> imageFiles,
+    required List<XFile> imageFiles, 
   }) async {
     isSubmitting = true;
-    notifyListeners(); // 投稿ボタンをローディング表示にする
+    notifyListeners(); 
 
     try {
-      //エラー回避用：Firebaseへの保存処理をコメントアウト
-      /*
       List<String> fileUrls = await _repository.uploadFiles(imageFiles);
-      final newExam = PastExam(...);
-      await _repository.addPastExam(newExam);
-      */
 
-      // 💡 代わりに2秒待って「投稿成功したフリ」をする
-      await Future.delayed(const Duration(seconds: 2));
+      final newExam = PastExam(
+        pastexamId: '', 
+        title: title,
+        year: year,
+        subjectName: subjectName,
+        professorName: professorName,
+        fileUrls: fileUrls,
+        createdAt: DateTime.now(),
+        userId: 'dummy_user_id', 
+      );
+
+      await _repository.addPastExam(newExam);
 
       isSubmitting = false;
       notifyListeners();
-      return true; // 成功として画面を戻す
+      return true; 
       
     } catch (e) {
       print("投稿エラー: $e");
       isSubmitting = false;
       notifyListeners();
-      return false; // 失敗...
+      return false; 
+    }
+  }
+
+  // ==========================================
+  // 5. 削除処理
+  // ==========================================
+  Future<bool> deleteExam(String pastexamId, List<String> imageUrls) async {
+    try {
+      final success = await _repository.deletePastExam(pastexamId, imageUrls);
+      return success;
+    } catch (e) {
+      print("削除エラー: $e");
+      return false;
     }
   }
 }

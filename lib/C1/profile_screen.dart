@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:student_information_1/C3/user_manager.dart';
+import 'package:student_information_1/past/past_exam_repository.dart';
 import 'profile_edit_screen.dart'; 
 // 💡 先ほど作ったマネージャーをインポート（パスは環境に合わせて調整してください）
 import '../C3/circle_manager.dart'; 
@@ -39,6 +40,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final List<Map<String, dynamic>> combinedPosts = [];
     for (var c in circles) { combinedPosts.add({'id': c.id, 'title': c.name, 'category': 'サークル', 'date': '登録済み', 'type': 'circle', 'imageUrl': c.imageUrl}); }
     for (var p in products) { combinedPosts.add({'id': p.id, 'title': p.title, 'category': '教材', 'date': '出品済み', 'type': 'market', 'imageUrl': p.imageUrl}); }
+    
+    /*
+    for (var e in exams) {
+      combinedPosts.add({
+        'id': e.pastexamId, 'title': e.title, 'category': '過去問', 'date': '投稿済み', 'type': 'pastexam', 'imageUrl': e.fileUrls.isNotEmpty ? e.fileUrls.first : '', 
+      });
+    */
 
     setState(() {
       _userName = fetchedName; // 💡 取得した名前をセット
@@ -176,6 +184,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   await CircleManager().deleteCircle(postId, imageUrl);
                                                 } else if (postType == 'market') {
                                                   await MarketManager().deleteProduct(postId, imageUrl);
+                                                } else if (postType == 'pastexam'){
+                                                  await PastExamRepository().deletePastExam(postId, imageUrl);
                                                 }
 
                                                 // ダイアログを閉じて、リストを再取得（更新）

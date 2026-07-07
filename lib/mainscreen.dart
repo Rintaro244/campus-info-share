@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'past_exam_screen.dart';
-import 'features/spot/spot_search_screen.dart';  // import追加
-import 'C1/circle_search_screen.dart';  // import追加
-import 'C1/market_search_screen.dart';  // import追加
-import 'C1/profile_screen.dart';  // import追加
+import 'past/past_exam_screen.dart';
+import 'features/spot/spot_search_screen.dart'; 
+import 'C1/circle_search_screen.dart'; 
+import 'C1/market_search_screen.dart'; 
+import 'C1/profile_screen.dart';  
 
 class MainScreen extends StatefulWidget{
   const MainScreen({super.key});
@@ -35,15 +35,13 @@ class _MainScreenState extends State<MainScreen>{
         backgroundColor: Colors.white,
         elevation: 1, // 少しだけ影をつけてバーを区切る
         
-        // 💡 ここがポイント！ actions を使うと「右上」にボタンを配置できます
-        // （もし「左上」にしたい場合は、actions の代わりに leading: IconButton(...) を使います）
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: IconButton(
               icon: const Icon(Icons.account_circle, color: Colors.blue, size: 32), // プロフィールっぽいアイコン
               onPressed: () async{
-                // 🚀 アイコンを押したらプロフィール画面へ遷移する処理
+                // アイコンを押したらプロフィール画面へ遷移する処理
                 await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => const ProfileScreen(),
