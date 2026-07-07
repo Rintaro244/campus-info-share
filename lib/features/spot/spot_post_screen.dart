@@ -126,7 +126,7 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
     final maxContentWidth = width >= 600 ? 600.0 : double.infinity;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Spot投稿')),
+      appBar: AppBar(title: const Text('おすすめスポット投稿')),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
