@@ -16,7 +16,7 @@ class OtpScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('認証アプリに表示されている6桁のコードを入力してください。'),
+            const Text('認証アプリに表示されている6桁のコード(数字)を入力してください。'),
             TextField(
               controller: _otpController,
               decoration: const InputDecoration(labelText: '認証コード'),
@@ -25,10 +25,15 @@ class OtpScreen extends StatelessWidget {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () async {
-                await _controller.submitOtp(_otpController.text);
-                if (!context.mounted) return;
-                // 認証成功でホーム画面へ
-                Navigator.pushReplacementNamed(context, '/home');
+                try{
+                  await _controller.submitOtp(_otpController.text);
+                  if (!context.mounted) return;
+                  // 認証成功でホーム画面へ
+                  Navigator.pushReplacementNamed(context, '/home');
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),);
+                }
               },
               child: const Text('認証してログイン'),
             ),

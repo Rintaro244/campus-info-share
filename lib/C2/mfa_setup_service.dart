@@ -17,15 +17,17 @@ class MfaSetupService {
       rethrow;
     } on TotpSetupFailureException {
       rethrow;
+    } on NetworkException {
+      rethrow;
     } catch (e) {
       throw Exception('不明なエラー');
     }
   }
 
   Future<void> finalizeMfaEnrollment(String otpCode) async {
-    if (!validateOtpInput(otpCode)) {
+    /*if (!validateOtpInput(otpCode)) {
       throw InvalidOtpException();
-    }
+    }*/
 
     try {
       //MFA登録完了処理依頼
@@ -34,13 +36,15 @@ class MfaSetupService {
       rethrow;
     } on InvalidOtpException {
       rethrow;
+    } on NetworkException {
+      rethrow;
     } catch (e) {
       throw Exception('不明なエラー');
     }
   }
 
-  bool validateOtpInput(String otpCode) {
+  /*bool validateOtpInput(String otpCode) {
     final regExp = RegExp(r'^\d{6}$');
     return regExp.hasMatch(otpCode);
-  }
+  }*/
 }

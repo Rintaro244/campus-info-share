@@ -22,22 +22,22 @@ class AuthRepository {
       //UserCredentialオブジェクトに含まれるuserオブジェクトを別の変数に格納
       final user = userCredential.user;
       if(user == null){
-        throw AccountCreationFailedException();
+        throw AccountCreationFailedException();//アカウント作成失敗
       }
       
       try{
         //確認メール送信処理
         await user.sendEmailVerification();
       } catch (e) {
-        throw MailSendFailureException();
+        throw MailSendFailureException();//メール送信失敗
       }
 
     } on FirebaseAuthException catch(e){
       //FirebaseAuthExceptionの例外コードに応じてエラーを投げる
       if(e.code == 'email-already-in-use'){
-        throw EmailAlreadyInUseException();
+        throw EmailAlreadyInUseException();//メールアドレス重複
       }else if(e.code == 'network-request-failed'){
-        throw NetworkException();
+        throw NetworkException();//ネットワークエラー
       }
       throw  Exception('不明なエラー: ${e.code}');
     }
@@ -48,18 +48,18 @@ class AuthRepository {
     try{
       final user = _firebaseAuth.currentUser;
       if(user == null){
-        throw InvalidUserSessionException();
+        throw InvalidUserSessionException();//セッション無効
       }
 
       //Firebaseのユーザ状態を再読み込み
       await user.reload();
 
       if (!user.emailVerified) {
-        throw EmailNotVerifiedException();
+        throw EmailNotVerifiedException();//メール認証未完了
       }
     } on FirebaseAuthException catch (e) {
       if (e.code == 'network-request-failed') {
-        throw NetworkException();
+        throw NetworkException();//ネットワークエラー
       }
       throw Exception('不明なエラー: ${e.code}');
     }
@@ -78,9 +78,9 @@ class AuthRepository {
       throw MultiFactorAuthRequiredException();
     } on FirebaseAuthException catch (e) {
       if (e.code == 'wrong-password' || e.code == 'user-not-found' || e.code == 'invalid-credential') {
-        throw InvalidCredentialException();
+        throw InvalidCredentialException();//入力間違い
       } else if (e.code == 'network-request-failed') {
-        throw NetworkException();
+        throw NetworkException();//ネットワークエラー
       }
       throw Exception('不明なエラー: ${e.code}');
     }
@@ -89,7 +89,7 @@ class AuthRepository {
   //OTP検証
   Future<void> requestVerifyOTP(String otpCode) async {
     if (_multiFactorResolver == null) { 
-      throw InvalidLoginSessionException();
+      throw InvalidLoginSessionException();//セッション無効
     }
 
     try {
@@ -102,9 +102,9 @@ class AuthRepository {
       _multiFactorResolver = null;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'invalid-verification-code') {
-        throw InvalidOtpException();
+        throw InvalidOtpException();//OTP間違い
       } else if (e.code == 'network-request-failed') {
-        throw NetworkException();
+        throw NetworkException();//ネットワークエラー
       }
       throw Exception('不明なエラー: ${e.code}');
     }
@@ -114,7 +114,7 @@ class AuthRepository {
   Future<String> generateTotpSecretUrl() async {
     final user = _firebaseAuth.currentUser;
     if (user == null) {
-      throw InvalidUserSessionException();
+      throw InvalidUserSessionException();//セッション無効
     }
 
     try {
@@ -125,6 +125,11 @@ class AuthRepository {
       //URL生成
       final qrCodeUrl = _tempTotpSecret!.generateQrCodeUrl(accountName: user.email ?? 'ユーザ', issuer: 'CampusInfoShare',);
       return qrCodeUrl;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'network-request-failed') {
+        throw NetworkException();
+      }
+      throw TotpSetupFailureException();
     } catch (e) {
       throw TotpSetupFailureException();
     }
@@ -134,7 +139,7 @@ class AuthRepository {
   Future<void> enrollTotpMfa(String otpCode) async {
     final user = _firebaseAuth.currentUser;
     if (user == null || _tempTotpSecret == null) {
-      throw InvalidMfaSetupSessionException();
+      throw InvalidMfaSetupSessionException();//セッション無効
     }
 
     try {
@@ -149,7 +154,9 @@ class AuthRepository {
       
     } on FirebaseAuthException catch (e) {
       if (e.code == 'invalid-verification-code') {
-        throw InvalidOtpException();
+        throw InvalidOtpException();//OTP間違い
+      } else if (e.code == 'network-request-failed') {
+        throw NetworkException();
       }
       throw Exception('不明なエラー: ${e.code}');
     }

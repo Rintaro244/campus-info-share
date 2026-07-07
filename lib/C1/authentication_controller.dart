@@ -70,12 +70,24 @@ class AuthenticationController {
 
   //アカウント新規作成時
   Future<void> submitRegistration(String mailAddress, String password, String passwordConfirm) async {
+    
+    if(mailAddress.isEmpty || password.isEmpty || passwordConfirm.isEmpty) {
+      throw Exception('すべての項目を入力してください');
+    }
+
+    final alphanumericRegex = RegExp(r'^(?=.*[a-zA-Z])(?=.*\d).{8,}$');
+    if(!alphanumericRegex.hasMatch(password)) {
+      throw Exception('パスワードは8文字以上で、英字と数字の両方を含めてください');
+    }
+
+    if(password != passwordConfirm) {
+      throw Exception('パスワードと確認用パスワードが一致しません');
+    }
+    
     try {
       await _accountCreationService.requestAccountCreation(mailAddress, password, passwordConfirm);
     } on InvalidDomainException {
-      throw Exception('このメールアドレスは使用できません');
-    } on PasswordMismatchException {
-      throw Exception('パスワードが一致しません');
+      throw Exception('芝浦工業大学のメールアドレス (@shibaura-it.ac.jp または @sic.shibaura-it.ac.jp) を使用してください');
     } on EmailAlreadyInUseException {
       throw Exception('このメールアドレスは既に登録されています');
     } on MailSendFailureException {
@@ -100,19 +112,41 @@ class AuthenticationController {
 
   //MFA初期設定時
   Future<String> startMfaSetup() async {
-    // C2層からQRコード用のデータ（またはURL）を取得する
-    final qrData = await _mfaSetupService.initiateMfaSetup();
-    return qrData;
+    try {
+      // C2層からQRコード用のデータ（またはURL）を取得する
+      final qrData = await _mfaSetupService.initiateMfaSetup();
+      return qrData;
+    } on InvalidUserSessionException {
+      throw Exception('セッションが無効です。もう一度ログインしなおしてください');
+    } on TotpSetupFailureException {
+      throw Exception('MFAの初期化に失敗しました。もう一度お試しください。');
+    } on NetworkException {
+      throw Exception('ネットワークエラーが発生しました');
+    } catch (e) {
+      throw Exception('不明なエラー');
+    }
+    
   }
 
   //MFA初期設定完了時
   Future<void> completeMfaEnrollment(String otpCode) async {
-    if (otpCode.isEmpty || otpCode.length != 6) {
-      throw Exception('6桁の認証コードを正しく入力してください。');
+    final otpRegex = RegExp(r'^\d{6}$');
+    if (!otpRegex.hasMatch(otpCode)) {
+      throw Exception('6桁の認証コード(数字)を正しく入力してください。');
     }
-
-    // C2層のMFA登録確定処理を呼び出す
-    await _mfaSetupService.finalizeMfaEnrollment(otpCode);
+    
+    try {
+      // C2層のMFA登録確定処理を呼び出す
+      await _mfaSetupService.finalizeMfaEnrollment(otpCode);
+    } on InvalidMfaSetupSessionException {
+      throw Exception('MFA設定の有効期限が切れましたもう一度ログインしなおしてください');
+    } on InvalidOtpException {
+      throw Exception('認証コードが正しくありません。もう一度確認してください');
+    } on NetworkException {
+      throw Exception('ネットワークエラーが発生しました');
+    } catch (e) {
+      throw Exception('不明なエラー');
+    }
   }
 
   //ログアウト時
@@ -128,7 +162,7 @@ class AuthenticationController {
 
 
 
-//いったんテスト用の実行を有効化
+//UIテスト用の実行
 /*
 class AuthenticationController {
   // ログイン処理

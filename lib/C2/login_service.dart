@@ -12,9 +12,9 @@ class LoginService{
   LoginService({AuthRepository? authRepository}): _authRepository = authRepository ?? AuthRepository();
 
   Future<void> processLogin(String emailAddress, String password) async {
-    if (!validateLoginInput(emailAddress, password)) {
+    /*if (!validateLoginInput(emailAddress, password)) {
       throw Exception('メールアドレスとパスワードを入力してください');
-    }
+    }*/
 
     try {
       //パスワード認証依頼
@@ -57,11 +57,10 @@ class LoginService{
     }
   }
 
-  bool validateLoginInput(String emailAddress, String password) {
-    //後で条件修正する
+  /*bool validateLoginInput(String emailAddress, String password) {
     if (emailAddress.isEmpty || password.isEmpty) {
       return false;
     }
     return true;
-  }
+  }*/
 }

@@ -1,15 +1,15 @@
 // lib/main_auth_test.dart
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'firebase_options.dart';
+import 'package:student_information_1/firebase_options.dart';
 
 // あなたの作成した画面をインポート
-import 'C1/login_screen.dart';
-import 'C1/mfa_setup_screen.dart';
-import 'C1/otp_screen.dart';
-import 'C1/registration_screen.dart';
-import 'C1/email_verification_screen.dart';
-import 'C1/registration_success_screen.dart';
+import 'package:student_information_1/C1/login_screen.dart';
+import 'package:student_information_1/C1/mfa_setup_screen.dart';
+import 'package:student_information_1/C1/otp_screen.dart';
+import 'package:student_information_1/C1/registration_screen.dart';
+import 'package:student_information_1/C1/email_verification_screen.dart';
+import 'package:student_information_1/C1/registration_success_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -47,7 +47,7 @@ class RegistrationScreen extends StatelessWidget {
                   Navigator.pushReplacementNamed(context, '/email-verification');
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
+                    SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
                   );
                 }
               },

@@ -10,8 +10,8 @@ class InvalidCredentialException implements Exception {}
 class InvalidOtpException implements Exception {}
 //アカウント作成時ドメインエラー
 class InvalidDomainException implements Exception {}
-//アカウント作成時パスワードエラー
-class PasswordMismatchException implements Exception {}
+//アカウント作成時パスワード不一致エラー
+//class PasswordMismatchException implements Exception {}
 //アカウント作成時メール送信エラー
 class MailSendFailureException implements Exception {}
 //アカウント作成時メール認証エラー
@@ -30,3 +30,5 @@ class InvalidMfaSetupSessionException implements Exception {}
 class SignOutFailureException implements Exception {}
 //MFA登録が必要な場合
 class MfaSetupRequiredException implements Exception {}
+//アカウント作成時パスワード制限エラー
+class WeakPasseordException implements Exception {}
