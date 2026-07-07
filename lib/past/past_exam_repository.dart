@@ -52,4 +52,9 @@ class PastExamRepository {
   Future<void> addPastExam(PastExam exam) async {
     await _firestore.collection('past_exams').add(exam.toFirestore());
   }
+
+  Future<void> deletePastExam(String pastexamId) async {
+    // Firestoreの「past_exams」コレクションから、指定されたIDのデータを削除する
+    await _firestore.collection('past_exams').doc(pastexamId).delete();
+  }
 }

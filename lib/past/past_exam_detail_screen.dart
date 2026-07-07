@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'past_exam.dart';
 
-class PastExamDetailScreen extends StatelessWidget {
+import 'past_exam_controller.dart';
+import 'past_exam_repository.dart';
+import 'past_exam_screen.dart';
+
+class PastExamDetailScreen extends ConsumerWidget {
   final PastExam exam;
 
   const PastExamDetailScreen({Key? key, required this.exam}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    // 💡 過去問データの中に、画像のURLリストが「imageUrls」という名前で入っていると仮定しています。
-    // もしデータモデル（past_exam.dart）での変数名が異なる場合は、ここをその名前（imagesなど）に書き換えてください。
+  Widget build(BuildContext context, WidgetRef ref) {
     final imageUrls = exam.fileUrls; 
 
     return Scaffold(
@@ -19,7 +22,51 @@ class PastExamDetailScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            onPressed: () async {
+              // 削除確認ダイアログを表示
+              final bool? confirm = await showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('削除の確認'),
+                  content: const Text('この過去問を削除してもよろしいですか？\n※この操作は取り消せません。'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('キャンセル', style: TextStyle(color: Colors.grey)),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('削除する', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                await ref.read(pastExamControllerProvider).deleteExam(exam.pastexamId); 
+                
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('削除しました'), 
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(

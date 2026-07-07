@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart'; // 💡 dart:ioの代わりにXFileを使うために追加！
+import 'package:image_picker/image_picker.dart'; 
 
 // 同じフォルダ(lib)にあるファイルを読み込む
 import 'past_exam.dart';
@@ -106,40 +106,49 @@ class PastExamController extends ChangeNotifier {
     required int year,
     required String subjectName,
     required String professorName,
-    // 💡 Web対応：FileではなくXFileを受け取る！
     required List<XFile> imageFiles, 
   }) async {
     isSubmitting = true;
-    notifyListeners(); // 投稿ボタンをローディング表示にする
+    notifyListeners(); 
 
     try {
-      // 💡 Repository側のXFile対応版のメソッドを呼び出す
       List<String> fileUrls = await _repository.uploadFiles(imageFiles);
 
-      // 保存用のデータ(PastExam)を作成
       final newExam = PastExam(
-        pastexamId: '', // Firestoreが自動生成するので最初は空でOK
+        pastexamId: '', 
         title: title,
         year: year,
         subjectName: subjectName,
         professorName: professorName,
         fileUrls: fileUrls,
         createdAt: DateTime.now(),
-        userId: 'dummy_user_id', // ※ログイン機能と連携したらここを適切なIDに変えます
+        userId: 'dummy_user_id', 
       );
 
-      // Firestoreにテキストデータを保存
       await _repository.addPastExam(newExam);
 
       isSubmitting = false;
       notifyListeners();
-      return true; // 成功！
+      return true; 
       
     } catch (e) {
       print("投稿エラー: $e");
       isSubmitting = false;
       notifyListeners();
-      return false; // 失敗...
+      return false; 
+    }
+  }
+
+  // ==========================================
+  // 5. 削除処理
+  // ==========================================
+  Future<bool> deleteExam(String pastexamId) async {
+    try {
+      await _repository.deletePastExam(pastexamId);
+      return true;
+    } catch (e) {
+      print("削除エラー: $e");
+      return false;
     }
   }
 }
