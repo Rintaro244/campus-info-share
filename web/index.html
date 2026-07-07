@@ -31,6 +31,15 @@
 
   <title>student_information_1</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Google Maps JavaScript API 読み込み用スクリプト（スポット機能の地図表示に必須）。
+    下記の YOUR_GOOGLE_MAPS_API_KEY を Google Cloud Console で取得した
+    実際のAPIキーに置き換えてください（lib/secrets.dart と同じキーでOK）。
+    このファイルは git 管理対象のため、キーは必ず「HTTPリファラー制限」を
+    かけた上で使用してください（利用ドメイン・localhost 以外からは呼べなくする）。
+  -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBzWLPd3H3G-q3cpMKeDCtWlM3yXgxrtXc"></script>
 </head>
 <body>
   <!--

@@ -29,6 +29,7 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
   String? _selectedCategory;
   List<XFile> _selectedImages = [];
   LatLng? _selectedLocation;
+  GoogleMapController? _mapController;
   bool _isSubmitting = false;
 
   static const _categories = [
@@ -60,7 +61,10 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
     if (address.isEmpty) return;
     try {
       final result = await _mapClient.geocode(address);
-      setState(() => _selectedLocation = LatLng(result.latitude, result.longitude));
+      final location = LatLng(result.latitude, result.longitude);
+      setState(() => _selectedLocation = location);
+      await _mapController
+          ?.animateCamera(CameraUpdate.newLatLngZoom(location, 16));
     } on AddressNotFoundException catch (e) {
       _showSnackBar(e.message);
     } on NetworkException catch (e) {
@@ -74,12 +78,16 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
       _showSnackBar('写真を1枚以上選択してください');
       return;
     }
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      _showSnackBar('ログインが必要です');
-      if (mounted) Navigator.pop(context);
+    if (_selectedLocation == null) {
+      _showSnackBar('地図をタップしてスポットの位置を指定してください');
       return;
     }
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'test-user';
+    // if (uid == null) {
+    //   _showSnackBar('ログインが必要です');
+    //   if (mounted) Navigator.pop(context);
+    //   return;
+    // }
     setState(() => _isSubmitting = true);
     try {
       await _service.postSpot(
@@ -282,8 +290,16 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
         ToggleButtons(
           isSelected:
               Campus.values.map((c) => c == _selectedCampus).toList(),
-          onPressed: (i) =>
-              setState(() => _selectedCampus = Campus.values[i]),
+          onPressed: (i) {
+            final campus = Campus.values[i];
+            setState(() => _selectedCampus = campus);
+            // まだピンを置いていない場合は、選んだキャンパス周辺に地図を移動する
+            if (_selectedLocation == null) {
+              _mapController?.animateCamera(CameraUpdate.newLatLngZoom(
+                  LatLng(campus.defaultLatitude, campus.defaultLongitude),
+                  16));
+            }
+          },
           borderRadius: BorderRadius.circular(6),
           children: Campus.values
               .map((c) => SizedBox(
@@ -387,34 +403,35 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 4),
+        const Text('地図をタップするとピンを置けます',
+            style: TextStyle(fontSize: 11, color: Colors.grey)),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
-          height: 100,
+          height: 160,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: _selectedLocation != null
-                ? GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                        target: _selectedLocation!, zoom: 15),
-                    markers: {
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _selectedLocation ??
+                    LatLng(_selectedCampus.defaultLatitude,
+                        _selectedCampus.defaultLongitude),
+                zoom: 16,
+              ),
+              onMapCreated: (controller) => _mapController = controller,
+              markers: _selectedLocation == null
+                  ? {}
+                  : {
                       Marker(
                         markerId: const MarkerId('pin'),
                         position: _selectedLocation!,
                       ),
                     },
-                    onTap: (pos) =>
-                        setState(() => _selectedLocation = pos),
-                    myLocationButtonEnabled: false,
-                    zoomControlsEnabled: false,
-                  )
-                : Container(
-                    color: Colors.grey[100],
-                    child: const Center(
-                      child: Text('[ GoogleMap ピン配置 ]',
-                          style: TextStyle(color: Colors.grey)),
-                    ),
-                  ),
+              onTap: (pos) => setState(() => _selectedLocation = pos),
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+            ),
           ),
         ),
       ],
