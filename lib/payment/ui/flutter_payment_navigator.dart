@@ -12,6 +12,7 @@ class AppRoutes {
   static const String itemDetail = '/items/detail'; // W14 教材詳細
   static const String paymentSelect = '/payment/select'; // W15 支払方法選択
   static const String cardEntry = '/payment/card'; // 決済カード入力画面
+  static const String purchaseComplete = '/payment/complete'; // 購入完了画面
 
   const AppRoutes._();
 }
@@ -57,6 +58,11 @@ class FlutterPaymentNavigator implements PaymentNavigator {
         amount: amount,
       ),
     );
+  }
+
+  @override
+  void goToPurchaseComplete({required String listingId}) {
+    _nav?.pushNamed(AppRoutes.purchaseComplete, arguments: listingId);
   }
 
   @override
