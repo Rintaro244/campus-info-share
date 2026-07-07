@@ -1,7 +1,8 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart'; // 💡 kIsWeb（Webかどうかの判定）を使うために追加
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart'; // 💡 画像選択パッケージ
+import 'package:image_picker/image_picker.dart';
 
 import 'past_exam_controller.dart';
 
@@ -19,8 +20,8 @@ class _PastExamAddScreenState extends ConsumerState<PastExamAddScreen> {
   final _subjectController = TextEditingController();
   final _professorController = TextEditingController();
   
-  // 選択された画像ファイルを一時的に保存するリスト
-  final List<File> _selectedImages = [];
+  // 💡 修正ポイント1：File ではなく XFile のまま保存する
+  final List<XFile> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -32,17 +33,18 @@ class _PastExamAddScreenState extends ConsumerState<PastExamAddScreen> {
     super.dispose();
   }
 
-  /// 💡 スマホのアルバムから画像を複数枚選択する関数
+  /// スマホのアルバムから画像を複数枚選択する関数
   Future<void> _pickImages() async {
     final List<XFile> images = await _picker.pickMultiImage();
     if (images.isNotEmpty) {
       setState(() {
-        _selectedImages.addAll(images.map((image) => File(image.path)));
+        // 💡 修正ポイント2：Fileに変換せず、XFileのままリストに追加する
+        _selectedImages.addAll(images);
       });
     }
   }
 
-  /// 💡 投稿ボタンが押された時の処理
+  /// 投稿ボタンが押された時の処理
   Future<void> _submit() async {
     // 入力値のバリデーションチェック（未入力がないか）
     if (!_formKey.currentState!.validate()) return;
@@ -61,6 +63,7 @@ class _PastExamAddScreenState extends ConsumerState<PastExamAddScreen> {
     final controller = ref.read(pastExamControllerProvider);
     
     // ControllerのsubmitExamを呼び出してFirebaseに保存
+    // 💡 _selectedImages が XFile になったので、エラーが出なくなります！
     final success = await controller.submitExam(
       title: _titleController.text.trim(),
       year: int.parse(_yearController.text.trim()),
@@ -186,7 +189,10 @@ class _PastExamAddScreenState extends ConsumerState<PastExamAddScreen> {
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
                                 image: DecorationImage(
-                                  image: FileImage(_selectedImages[index]),
+                                  // 💡 修正ポイント3：Web環境とスマホ環境で画像の表示方法を自動で切り替える
+                                  image: kIsWeb 
+                                      ? NetworkImage(_selectedImages[index].path) as ImageProvider
+                                      : FileImage(File(_selectedImages[index].path)),
                                   fit: BoxFit.cover,
                                 ),
                               ),
