@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:characters/characters.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../models/spot.dart';
 import '../models/spot_review.dart';
@@ -40,7 +40,7 @@ class SpotService {
     String? description,
     double? latitude,
     double? longitude,
-    List<File> imageFiles = const [],
+    List<XFile> imageFiles = const [],
   //Firestore遅いので、asyncで非同期処理する
   }) async {
     // 入力チェック
