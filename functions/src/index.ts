@@ -17,6 +17,7 @@ import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import Stripe from 'stripe';
 
 import { COLLECTIONS, ITEM_FIELDS } from './constants';
@@ -103,7 +104,9 @@ export const createPaymentIntent = onCall(
 // ── fulfill 用 Firestore ストア（admin トランザクションを TxOps に適合）──
 function makeFulfillStore(): FulfillStore {
   return {
-    serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+    // admin.firestore.FieldValue は firebase-admin v12 の ESM interop で
+    // undefined になるため、サブパスから直接 import した FieldValue を使う。
+    serverTimestamp: () => FieldValue.serverTimestamp(),
     runTransaction: (work) =>
       db.runTransaction(async (t) => {
         const ops: TxOps = {
