@@ -2,17 +2,20 @@
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:student_information_1/payment/providers.dart';
 import '../C3/market_manager.dart';
+import 'market_validator.dart';
 
-class MarketPostScreen extends StatefulWidget {
-  const MarketPostScreen({Key? key}) : super(key: key);
+class MarketPostScreen extends ConsumerStatefulWidget {
+  const MarketPostScreen({super.key});
 
   @override
-  State<MarketPostScreen> createState() => _MarketPostScreenState();
+  ConsumerState<MarketPostScreen> createState() => _MarketPostScreenState();
 }
 
-class _MarketPostScreenState extends State<MarketPostScreen> {
+class _MarketPostScreenState extends ConsumerState<MarketPostScreen> {
   final _titleController = TextEditingController();
   final _priceController = TextEditingController();
   final _descController = TextEditingController();
@@ -36,9 +39,27 @@ class _MarketPostScreenState extends State<MarketPostScreen> {
     final priceStr = _priceController.text.trim();
     final desc = _descController.text.trim();
 
-    if (title.isEmpty || priceStr.isEmpty || desc.isEmpty) {
+    // 入力値の妥当性チェック（タイトル1〜40字・価格0〜100,000円・説明1〜1000字）。
+    // Rules 側でも同じ範囲を強制するため、ここは早期のユーザー通知が目的。
+    if (!MarketValidator.validateItem(
+      title: title,
+      priceStr: priceStr,
+      description: desc,
+    )) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('必須項目を入力してください'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('入力内容を確認してください（価格は0〜100,000円）'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // 出品者はログイン中の本人。未ログインでは出品不可（Rules も本人以外を弾く）。
+    final sellerId = ref.read(currentUidProvider);
+    if (sellerId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('出品するにはログインが必要です'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -54,9 +75,10 @@ class _MarketPostScreenState extends State<MarketPostScreen> {
       condition: _selectedCondition,
       description: desc,
       imageBytes: _imageBytes, // 💡 画像をマネージャーに渡す
-      userId: 'dummy_user_123', // 💡 ユーザーIDを渡す（後で実装）
+      sellerId: sellerId,
     );
 
+    if (!mounted) return;
     setState(() { _isUploading = false; });
 
     if (success) {
@@ -106,13 +128,13 @@ class _MarketPostScreenState extends State<MarketPostScreen> {
             TextField(controller: _titleController, decoration: const InputDecoration(labelText: '商品名（教科書名など）')),
             TextField(controller: _priceController, decoration: const InputDecoration(labelText: '価格（半角数字）'), keyboardType: TextInputType.number),
             DropdownButtonFormField<String>(
-              value: _selectedCampus,
+              initialValue: _selectedCampus,
               decoration: const InputDecoration(labelText: '受け渡しキャンパス'),
               items: ['豊洲', '大宮', '両方'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
               onChanged: (val) => setState(() => _selectedCampus = val!),
             ),
             DropdownButtonFormField<String>(
-              value: _selectedCondition,
+              initialValue: _selectedCondition,
               decoration: const InputDecoration(labelText: '商品の状態'),
               items: ['新品同様', '目立った傷や汚れなし', 'やや傷や汚れあり', '状態が悪い'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
               onChanged: (val) => setState(() => _selectedCondition = val!),

@@ -10,15 +10,100 @@ class GeoLocation {
   const GeoLocation(this.latitude, this.longitude);
 }
 
+// 場所検索（Places Text Search）の候補1件。店名・住所・座標を持つ。
+class PlaceCandidate {
+  final String name;
+  final String address;
+  final double latitude;
+  final double longitude;
+
+  const PlaceCandidate({
+    required this.name,
+    required this.address,
+    required this.latitude,
+    required this.longitude,
+  });
+}
+
 class MapApiClient {
   final String apiKey;
   final http.Client _httpClient;
 
   static const String _geocodeBaseUrl =
       'https://maps.googleapis.com/maps/api/geocode/json';
+  // Places API (New) の Text Search。ブラウザからのCORSに対応している。
+  static const String _placesSearchUrl =
+      'https://places.googleapis.com/v1/places:searchText';
 
   MapApiClient({required this.apiKey, http.Client? httpClient})
       : _httpClient = httpClient ?? http.Client();
+
+  /// 店名・キーワードの部分入力から場所の候補を検索する（Places Text Search）。
+  /// 住所の完全一致を要求する geocode と違い「つじ田」等の曖昧な店名でヒットする。
+  /// biasLat/biasLng を渡すとその周辺（キャンパス等）の結果を優先する。
+  Future<List<PlaceCandidate>> searchPlaces(
+    String query, {
+    double? biasLat,
+    double? biasLng,
+  }) async {
+    final requestBody = <String, dynamic>{
+      'textQuery': query,
+      'languageCode': 'ja',
+      'regionCode': 'JP',
+      if (biasLat != null && biasLng != null)
+        'locationBias': {
+          'circle': {
+            'center': {'latitude': biasLat, 'longitude': biasLng},
+            'radius': 30000.0,
+          },
+        },
+    };
+
+    // キーはヘッダー(X-Goog-Api-Key)ではなくクエリで渡す。
+    // ブラウザ(Web)からのCORSリクエストではヘッダー方式のキーが認識されず
+    // 403「unregistered callers」になるため、geocodeと同じクエリ方式に揃える。
+    final uri = Uri.parse(_placesSearchUrl).replace(queryParameters: {
+      'key': apiKey,
+      // 必要なフィールドだけ取得（課金・レスポンス削減のため必須）
+      'fields': 'places.displayName,places.formattedAddress,places.location',
+    });
+
+    try {
+      final response = await _httpClient.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+
+      if (response.statusCode != 200) {
+        throw NetworkException('場所検索APIへの接続に失敗しました (${response.statusCode})');
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final places = body['places'] as List<dynamic>?;
+      if (places == null || places.isEmpty) {
+        throw AddressNotFoundException('「$query」に一致する場所が見つかりません');
+      }
+
+      return places.map((p) {
+        final place = p as Map<String, dynamic>;
+        final location = place['location'] as Map<String, dynamic>;
+        final displayName = place['displayName'] as Map<String, dynamic>?;
+        return PlaceCandidate(
+          name: (displayName?['text'] as String?) ?? '（名称不明）',
+          address: (place['formattedAddress'] as String?) ?? '',
+          latitude: (location['latitude'] as num).toDouble(),
+          longitude: (location['longitude'] as num).toDouble(),
+        );
+      }).toList();
+    } on AddressNotFoundException {
+      rethrow;
+    } on NetworkException {
+      rethrow;
+    } catch (e) {
+      throw NetworkException('通信環境を確認してください');
+    }
+  }
 
   /// 住所文字列から緯度・経度を取得する（ジオコーディング）。
   Future<GeoLocation> geocode(String address) async {
