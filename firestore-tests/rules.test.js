@@ -137,11 +137,90 @@ describe('items Security Rules', () => {
     );
   });
 
-  test('⑨ create / delete はクライアント不可', async () => {
-    await assertFails(
-      authed(BUYER).collection('items').doc('new').set(onSaleItem),
-    );
+  test('⑨ delete はクライアント不可', async () => {
     await seed(LISTING, onSaleItem);
     await assertFails(authed(BUYER).collection('items').doc(LISTING).delete());
+  });
+
+  // --- create（出品）のルール ---
+  // 出品者本人・on_sale・買い手なし・価格0〜100,000・タイトル1〜40文字のみ許可。
+  /** BUYER 自身が出品する有効な新規 item。 */
+  const validNewItem = {
+    price: 1000,
+    status: 'on_sale',
+    sellerId: BUYER,
+    title: '線形代数の教科書',
+  };
+
+  test('⑩ 出品者本人による有効な create は許可', async () => {
+    await assertSucceeds(
+      authed(BUYER).collection('items').doc('new').set(validNewItem),
+    );
+  });
+
+  test('⑪ 未ログインの create は拒否', async () => {
+    await assertFails(
+      unauthed().collection('items').doc('new').set(validNewItem),
+    );
+  });
+
+  test('⑫ sellerId を他人にした create は拒否', async () => {
+    await assertFails(
+      authed(BUYER).collection('items').doc('new').set({
+        ...validNewItem,
+        sellerId: OTHER,
+      }),
+    );
+  });
+
+  test('⑬ status が on_sale 以外の create は拒否', async () => {
+    await assertFails(
+      authed(BUYER).collection('items').doc('new').set({
+        ...validNewItem,
+        status: 'pending',
+      }),
+    );
+  });
+
+  test('⑭ buyerId を含む create は拒否', async () => {
+    await assertFails(
+      authed(BUYER).collection('items').doc('new').set({
+        ...validNewItem,
+        buyerId: BUYER,
+      }),
+    );
+  });
+
+  test('⑮ 価格0円（無料譲渡）の create は許可', async () => {
+    await assertSucceeds(
+      authed(BUYER).collection('items').doc('new').set({
+        ...validNewItem,
+        price: 0,
+      }),
+    );
+  });
+
+  test('⑯ 価格が範囲外（-1 / 100001 / 非整数）の create は拒否', async () => {
+    await assertFails(
+      authed(BUYER).collection('items').doc('a').set({ ...validNewItem, price: -1 }),
+    );
+    await assertFails(
+      authed(BUYER).collection('items').doc('b').set({ ...validNewItem, price: 100001 }),
+    );
+    await assertFails(
+      authed(BUYER).collection('items').doc('c').set({ ...validNewItem, price: '1000' }),
+    );
+  });
+
+  test('⑰ タイトルが空 / 40文字超の create は拒否', async () => {
+    await assertFails(
+      authed(BUYER).collection('items').doc('a').set({ ...validNewItem, title: '' }),
+    );
+    await assertFails(
+      authed(BUYER).collection('items').doc('b').set({
+        ...validNewItem,
+        title: 'あ'.repeat(41),
+      }),
+    );
   });
 });

@@ -11,8 +11,22 @@ service cloud.firestore {
       // 一覧表示のため read は全員許可
       allow read: if true;
 
-      // 出品・削除はクライアント不可（出品機能は現時点スコープ外）
-      allow create, delete: if false;
+      // 出品(create): ログイン済みの出品者本人のみ。初期状態は必ず on_sale・
+      // 買い手なし。価格は 0〜100,000円。タイトルは 1〜40文字。
+      // （価格・タイトルの範囲は MarketValidator と一致させる）
+      allow create: if request.auth != null
+                    && request.resource.data.sellerId == request.auth.uid
+                    && request.resource.data.status == 'on_sale'
+                    && request.resource.data.price is int
+                    && request.resource.data.price >= 0
+                    && request.resource.data.price <= 100000
+                    && request.resource.data.get('buyerId', null) == null
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 40;
+
+      // 削除はクライアント不可（出品取消は別タスク・現時点スコープ外）
+      allow delete: if false;
 
       // update: ログイン済み + price/sellerId 不変 + (ロック or アンロック) のみ
       allow update: if request.auth != null
