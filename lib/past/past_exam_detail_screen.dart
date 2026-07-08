@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'past_exam.dart';
 
 import 'past_exam_controller.dart';
-import 'past_exam_repository.dart';
-import 'past_exam_screen.dart';
+
 
 class PastExamDetailScreen extends ConsumerWidget {
   final PastExam exam;
