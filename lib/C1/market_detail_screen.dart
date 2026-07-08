@@ -137,11 +137,14 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         children: [
           // 商品画像（Storage 連携までは未設定ならプレースホルダ）
           if (imageUrl != null)
-            Image.network(
-              imageUrl,
+            Container(
               width: double.infinity,
               height: 300,
-              fit: BoxFit.cover,
+              color: Colors.black87, // 余白を黒にして画像を引き締める
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain, // 見切れ防止
+              ),
             )
           else
             Container(
