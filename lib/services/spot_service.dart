@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:characters/characters.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../models/spot.dart';
 import '../models/spot_review.dart';
@@ -20,15 +20,42 @@ class SpotService {
         _storageRepository = storageRepository ?? StorageRepository();
 
   // M6-1: スポット検索
-  Future<List<Spot>> searchSpots(
-    Campus campus, {
-    String sortBy = 'newly_created',
+  // campus が null の場合は全キャンパス対象（検索画面フィルタ「すべて」）。
+  // keyword はスポット名・おすすめポイント・カテゴリを対象に部分一致（クライアント側）。
+  // category が null または 'すべて' の場合はカテゴリで絞り込まない。
+  Future<List<Spot>> searchSpots({
+    Campus? campus,
+    String keyword = '',
+    String? category,
   }) async {
-    final spots = await _postRepository.getSpotsByCampus(campus);
-    if (sortBy == 'rating_desc') {
-      // TODO: 評価順ソートは別途実装予定
-    }
-    return spots;
+    final spots = campus == null
+        ? await _postRepository.getAllSpots()
+        : await _postRepository.getSpotsByCampus(campus);
+    return filterSpots(spots,
+        campus: campus, keyword: keyword, category: category);
+  }
+
+  // 取得済みのスポット一覧をメモリ内で絞り込む純関数（ネットワーク不要）。
+  // 検索画面はこれを使い、キーストローク毎の再取得を避けて即時に応答する（§4.1 性能）。
+  // campus が null は全キャンパス、category が null/''/'すべて' はカテゴリ絞り込み無し。
+  List<Spot> filterSpots(
+    List<Spot> spots, {
+    Campus? campus,
+    String keyword = '',
+    String? category,
+  }) {
+    final kw = keyword.trim().toLowerCase();
+    final hasCategory = category != null && category.isNotEmpty && category != 'すべて';
+
+    return spots.where((s) {
+      final matchesCampus = campus == null || s.campus == campus;
+      final matchesKeyword = kw.isEmpty ||
+          s.spotName.toLowerCase().contains(kw) ||
+          (s.description?.toLowerCase().contains(kw) ?? false) ||
+          s.category.toLowerCase().contains(kw);
+      final matchesCategory = !hasCategory || s.category == category;
+      return matchesCampus && matchesKeyword && matchesCategory;
+    }).toList();
   }
 
   // M6-2: スポット投稿
@@ -37,10 +64,11 @@ class SpotService {
     required Campus campus,
     required String category,
     required String authorUid,
+    required int starRating,
     String? description,
     double? latitude,
     double? longitude,
-    List<File> imageFiles = const [],
+    List<XFile> imageFiles = const [],
   //Firestore遅いので、asyncで非同期処理する
   }) async {
     // 入力チェック
@@ -52,6 +80,9 @@ class SpotService {
     }
     if (category.isEmpty) {
       throw ValidationException('カテゴリを選択してください');
+    }
+    if (starRating < 1 || starRating > 5) {
+      throw ValidationException('星評価は1〜5で指定してください');
     }
 
     // 重複チェック（同キャンパス内の同名スポット）
@@ -83,7 +114,17 @@ class SpotService {
       imageUrls: imageUrls,
     );
 
-    return 'success';  
+    // UC16: 投稿者の初期レビュー（星評価＋おすすめポイント）を登録する。
+    // これで averageRating/reviewCount がトランザクションで初期化され、詳細のレビューにも表示される。
+    final reviewComment = (description ?? '').trim();
+    await _postRepository.addReview(
+      spotId: spotId,
+      starRating: starRating,
+      comment: reviewComment.isEmpty ? 'おすすめのスポットです' : reviewComment,
+      authorUid: authorUid,
+    );
+
+    return 'success';
   }
 
   // M6-3: スポット削除
