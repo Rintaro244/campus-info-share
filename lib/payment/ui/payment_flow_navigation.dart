@@ -14,7 +14,10 @@ abstract interface class PaymentNavigator {
     required String paymentIntentId,
     required int amount,
   });
-  void goToPurchaseComplete({required String listingId});
+  /// 購入（譲渡）完了画面へ遷移する。
+  /// [transactionId] は完了画面の「出品者と連絡を取る」導線（= chats/{roomId}）に使う。
+  /// 0円フローは `free_<listingId>`、将来の有償フローは `pi.id` を渡す想定（汎用）。
+  void goToPurchaseComplete({required String listingId, String? transactionId});
   void backToItemDetail({required String reason});
   void showError({required int code, required String message});
 }
@@ -121,7 +124,11 @@ class PurchaseFlowCoordinator {
     }
 
     onPurchaseCompleted();
-    _navigator.goToPurchaseComplete(listingId: listingId);
+    // 0円フローの transactionId は functions 側 freeTransactionId() と一致させる（free_<listingId>）。
+    _navigator.goToPurchaseComplete(
+      listingId: listingId,
+      transactionId: 'free_$listingId',
+    );
     return PurchaseSession(
       stage: PurchaseStage.completedFree,
       listingId: listingId,

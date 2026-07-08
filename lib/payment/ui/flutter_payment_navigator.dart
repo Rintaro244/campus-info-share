@@ -31,6 +31,17 @@ class CardEntryArgs {
   });
 }
 
+/// 購入（譲渡）完了画面へ渡す引数。transactionId は「出品者と連絡を取る」導線に使う。
+@immutable
+class PurchaseCompleteArgs {
+  final String listingId;
+
+  /// チャットルーム ID（= transactionId）。未確定なら null（ボタン非表示）。
+  final String? transactionId;
+
+  const PurchaseCompleteArgs({required this.listingId, this.transactionId});
+}
+
 /// PaymentNavigator の Flutter 実装。GlobalKey 経由で BuildContext を
 /// 跨いだ非同期遷移に対応する。
 class FlutterPaymentNavigator implements PaymentNavigator {
@@ -61,8 +72,14 @@ class FlutterPaymentNavigator implements PaymentNavigator {
   }
 
   @override
-  void goToPurchaseComplete({required String listingId}) {
-    _nav?.pushNamed(AppRoutes.purchaseComplete, arguments: listingId);
+  void goToPurchaseComplete({required String listingId, String? transactionId}) {
+    _nav?.pushNamed(
+      AppRoutes.purchaseComplete,
+      arguments: PurchaseCompleteArgs(
+        listingId: listingId,
+        transactionId: transactionId,
+      ),
+    );
   }
 
   @override
