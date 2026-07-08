@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'mainscreen.dart';
+import 'payment/payment_integration.dart';
 
 // firebase_options.dart は共有Firebase(campus-info-share)用を
 // リポジトリ管理し、班全員で同一のものを使用する。
@@ -25,6 +26,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: '学内情報共有アプリ',
+      // C4 決済フロー用（担当: 木幡）。名前付きルートは C4 の分のみで、
+      // 既存の MaterialPageRoute 遷移（スポット等）には影響しない。
+      navigatorKey: paymentNavigatorKey,
+      scaffoldMessengerKey: paymentMessengerKey,
+      onGenerateRoute: onGeneratePaymentRoute,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,

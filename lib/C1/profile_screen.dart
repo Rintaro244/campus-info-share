@@ -58,15 +58,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
 
-      // フリマの変換
+      // フリマの変換（C4 の Item モデルに合わせて参照を差し替え）
       for (var p in products) {
         combinedPosts.add({
-          'id': p.id,
-          'title': p.title,
-          'category': '教材', 
+          'id': p.listingId,
+          'title': p.displayTitle,
+          'category': '教材',
           'date': '出品済み',
           'type': 'market', // 判別用
-          'imageUrl': p.imageUrl,
+          'imageUrl': p.imageUrls.isNotEmpty ? p.imageUrls.first : null,
         });
       }
 
