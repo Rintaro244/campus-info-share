@@ -43,10 +43,13 @@ Route<dynamic>? onGeneratePaymentRoute(RouteSettings settings) {
         builder: (_) => CardEntryScreen(args: args),
       );
     case AppRoutes.purchaseComplete:
+      final args = settings.arguments;
+      if (args is! PurchaseCompleteArgs) return null;
       return MaterialPageRoute(
         settings: settings,
         builder: (_) => PurchaseCompleteScreen(
-          listingId: settings.arguments as String?,
+          listingId: args.listingId,
+          transactionId: args.transactionId,
         ),
       );
   }

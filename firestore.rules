@@ -58,5 +58,48 @@ service cloud.firestore {
             && request.resource.data.get('buyerId', null) == null;
       }
     }
+
+    // 取引成立チャット（C4）。取引が成立した二者（buyerId/sellerId）のみ読み書き可。
+    // roomId = transactionId。ルーム本体はサーバ(Admin SDK トリガー)限定で作成する。
+    match /chats/{roomId} {
+
+      // 作成はサーバ(Admin SDK)限定。クライアントからは作れない
+      // （= 取引成立した二者のルームのみが存在することを保証する）。
+      allow create: if false;
+
+      // ルーム本体の read は当事者のみ。update/delete は不可（不変）。
+      allow read: if isChatParty();
+      allow update, delete: if false;
+
+      // 当事者判定: ルーム doc の buyerId / sellerId のいずれかが自分。
+      function isChatParty() {
+        return request.auth != null
+            && (request.auth.uid == resource.data.buyerId
+             || request.auth.uid == resource.data.sellerId);
+      }
+
+      match /messages/{messageId} {
+
+        // read は当事者のみ。
+        allow read: if isMessageParty();
+
+        // 送信: 当事者本人が、自分を senderId として、1〜1000文字の本文で作成。
+        allow create: if isMessageParty()
+                      && request.resource.data.senderId == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 1000;
+
+        // 送信後の改変・削除は不可。
+        allow update, delete: if false;
+
+        // 親ルーム doc を参照して当事者判定する。
+        function isMessageParty() {
+          return request.auth != null
+              && (request.auth.uid == get(/databases/$(database)/documents/chats/$(roomId)).data.buyerId
+               || request.auth.uid == get(/databases/$(database)/documents/chats/$(roomId)).data.sellerId);
+        }
+      }
+    }
   }
 }

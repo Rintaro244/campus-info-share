@@ -86,7 +86,7 @@ class FakeNavigator implements PaymentNavigator {
   }
 
   @override
-  void goToPurchaseComplete({required String listingId}) {
+  void goToPurchaseComplete({required String listingId, String? transactionId}) {
     purchaseCompleteShown = true;
   }
 
