@@ -6,258 +6,136 @@ import '../../shared/exceptions.dart';
 import 'spot_detail_screen.dart';
 import 'spot_post_screen.dart';
 
-// W16-a: キャンパス選択画面
-class SpotSearchScreen extends StatelessWidget {
+// W16: おすすめスポット検索（Web共通レイアウト）
+// 班員の検索画面（サークル・教材取引）と様式を統一：
+// AppBar + キーワード検索 + キャンパス/カテゴリのフィルタ + カード一覧 + 投稿FAB
+class SpotSearchScreen extends StatefulWidget {
   const SpotSearchScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          //Centerで縦方向に中央寄せする。Columnで縦方向に並べる。SizedBoxで余白を作る。OutlinedButtonでキャンパス選択ボタンを作る。_CampusCardでキャンパスカードを作る。
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.location_pin, size: 36, color: Colors.blue),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'SIT Spot',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                '芝浦工業大学 スポット検索',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-              OutlinedButton(
-                onPressed: null,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(164, 30),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                ),
-                child: const Text('キャンパスを選択', style: TextStyle(fontSize: 11)),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'どちらのキャンパスで\n探しますか？',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13),
-              ),
-              const SizedBox(height: 24),
-              _CampusCard(
-                campus: Campus.toyosu,
-                label: '豊洲キャンパス',
-                sublabel: 'Toyosu Campus',
-                iconColor: Colors.blue.shade100,
-              ),
-              const SizedBox(height: 12),
-              _CampusCard(
-                campus: Campus.omiya,
-                label: '大宮キャンパス',
-                sublabel: 'Omiya Campus',
-                iconColor: Colors.teal.shade100,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  State<SpotSearchScreen> createState() => _SpotSearchScreenState();
 }
 
-class _CampusCard extends StatelessWidget {
-  final Campus campus;
-  final String label;
-  final String sublabel;
-  final Color iconColor;
+class _SpotSearchScreenState extends State<SpotSearchScreen> {
+  final _service = SpotService();
 
-  const _CampusCard({
-    required this.campus,
-    required this.label,
-    required this.sublabel,
-    required this.iconColor,
-  });
+  // フィルタは班員UIに合わせて日本語ラベルの文字列で保持する
+  static const _campusOptions = ['すべて', '豊洲', '大宮'];
+  static const _categoryOptions = [
+    'すべて', 'カフェ', '飲食店', '勉強スペース', '公園', 'ショッピング', 'その他'
+  ];
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 240,
-      height: 76,
-      child: Card(
-        elevation: 1,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          //Naiver.pushでSpotSearchListScreenに遷移する。Campusを引数として渡す。
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              //選んだキャンパスを引数としてSpotSearchListScreenに渡す
-              builder: (_) => SpotSearchListScreen(campus: campus),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: iconColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.apartment, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      sublabel,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                const Icon(Icons.chevron_right, color: Colors.grey),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+  String _keyword = '';
+  String _selectedCampus = 'すべて';
+  String _selectedCategory = 'すべて';
 
-// W16-b: スポット一覧
-//StatefulWidgetでSpotSearchListScreenを作る。StateでSpotServiceを使ってスポット一覧を取得する。FutureBuilderでスポット一覧を表示する。
-//Statefulなので、クラスが2つに分かれる。SpotSearchListScreenと_SpotSearchListScreenState。
-class SpotSearchListScreen extends StatefulWidget {
-  final Campus campus;
-  const SpotSearchListScreen({super.key, required this.campus});
-
-  @override
-  State<SpotSearchListScreen> createState() => _SpotSearchListScreenState();
-}
-
-class _SpotSearchListScreenState extends State<SpotSearchListScreen> {
-  final _service = SpotService();//SpotServiceを使ってスポット一覧を取得する。
-  late Campus _selectedCampus;
-  List<Spot> _spots = [];
+  // ネットワークから取得した全スポット（フィルタ前）。絞り込みはメモリ内で行う。
+  List<Spot> _allSpots = [];
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
-  //画面が初期化されたときに、_selectedCampusにwidget.campusを代入して、_loadSpots()を呼び出す。
   void initState() {
     super.initState();
-    _selectedCampus = widget.campus;
-    _loadSpots();
+    _fetchAllSpots();
   }
 
-  //データ取得の心臓部。SpotServiceのsearchSpots()を呼び出して、スポット一覧を取得する。取得中はローディング表示、エラー時はエラーメッセージを表示する。
-  Future<void> _loadSpots() async {
+  // フィルタのキャンパスラベルを Campus?（すべて→null）に変換する
+  Campus? get _campusFilter =>
+      _selectedCampus == 'すべて' ? null : Campus.fromString(_selectedCampus);
+
+  // 現在のフィルタ条件をメモリ内で適用した表示用リスト（ネットワーク不要）。
+  List<Spot> get _visibleSpots => _service.filterSpots(
+        _allSpots,
+        campus: _campusFilter,
+        keyword: _keyword,
+        category: _selectedCategory,
+      );
+
+  // Firestore からの取得は「初回」「投稿完了後」「エラー再読み込み」だけに限定する。
+  // キーワード/フィルタ変更は _visibleSpots のメモリ内絞り込みで即時応答する（§4.1 性能）。
+  Future<void> _fetchAllSpots() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
     try {
-      final spots = await _service.searchSpots(_selectedCampus);
-      setState(() => _spots = spots);//setStateでスポット一覧を更新する。
+      final spots = await _service.searchSpots();
+      setState(() => _allSpots = spots);
     } on NetworkException catch (e) {
       setState(() => _errorMessage = e.message);
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: DropdownButton<Campus>(
-          value: _selectedCampus,
-          underline: const SizedBox(),
-          style: Theme.of(context).textTheme.titleMedium,
-          items: Campus.values
-              .map((c) => DropdownMenuItem(
-                    value: c,
-                    child: Text('${c.label}キャンパス ▾'),
-                  ))
-              .toList(),
-          onChanged: (c) {
-            if (c == null) return;
-            setState(() => _selectedCampus = c);
-            _loadSpots();
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.favorite_border),
-            iconSize: 24,
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: _buildBody(),
-      floatingActionButton: SizedBox(
-        width: 44,
-        height: 44,
-        child: FloatingActionButton(
-          onPressed: () async {
-            final user = FirebaseAuth.instance.currentUser;
-            if (user == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('ログインが必要です')),
-              );
-              return;
-            }
-            final created = await Navigator.push<bool>(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    SpotPostScreen(initialCampus: _selectedCampus),
+      appBar: AppBar(title: const Text('おすすめスポット検索')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              decoration: const InputDecoration(
+                labelText: 'キーワード検索',
+                prefixIcon: Icon(Icons.search),
               ),
-            );
-            if (created == true) _loadSpots();
-          },
-          child: const Icon(Icons.add),
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.local_fire_department), label: '人気'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'マップ'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: '履歴'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.favorite_border), label: 'お気に入り'),
+              onChanged: (val) {
+                // メモリ内フィルタなので再取得せず setState のみ（§4.1 即時応答）
+                setState(() => _keyword = val);
+              },
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _FilterDropdown(
+                icon: Icons.school,
+                value: _selectedCampus,
+                options: _campusOptions,
+                onChanged: (v) => setState(() => _selectedCampus = v),
+              ),
+              _FilterDropdown(
+                icon: Icons.category,
+                value: _selectedCategory,
+                options: _categoryOptions,
+                onChanged: (v) => setState(() => _selectedCategory = v),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Expanded(child: _buildBody()),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          // 投稿画面に入る前にログイン判定（未ログインなら遷移させない）
+          if (FirebaseAuth.instance.currentUser == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('投稿するにはログインが必要です')),
+            );
+            return;
+          }
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SpotPostScreen(
+                initialCampus: _campusFilter ?? Campus.toyosu,
+              ),
+            ),
+          );
+          if (created == true) _fetchAllSpots();
+        },
+        backgroundColor: Colors.blue[600],
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('スポットを投稿',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }
 
-  //画面の描画、スポット一覧の表示を行う。_isLoadingがtrueならローディング表示、_errorMessageがnullでないならエラーメッセージ表示、_spotsが空なら「スポットがまだありません」と表示する。それ以外はGridViewでスポット一覧を表示する。
-  //状態に応じて出し分け
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -270,15 +148,29 @@ class _SpotSearchListScreenState extends State<SpotSearchListScreen> {
             Text(_errorMessage!),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadSpots,
+              onPressed: _fetchAllSpots,
               child: const Text('再読み込み'),
             ),
           ],
         ),
       );
     }
-    if (_spots.isEmpty) {
-      return const Center(child: Text('スポットがまだありません'));
+    final spots = _visibleSpots;
+    if (spots.isEmpty) {
+      // データなし画面は空白にせず投稿を促す（要求仕様書 §4.2）
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.location_off, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            const Text('該当するスポットが見つかりませんでした'),
+            const SizedBox(height: 4),
+            const Text('右下のボタンから投稿してみましょう',
+                style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+      );
     }
     // レスポンシブ対応（要求仕様書7章）：スマホ1列→タブレット2列→PC3列
     return LayoutBuilder(
@@ -286,17 +178,52 @@ class _SpotSearchListScreenState extends State<SpotSearchListScreen> {
         final width = constraints.maxWidth;
         final crossAxisCount = width >= 1200 ? 3 : (width >= 600 ? 2 : 1);
         return GridView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 88),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             mainAxisExtent: 216,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),
-          itemCount: _spots.length,
-          itemBuilder: (context, index) => _SpotCard(spot: _spots[index]),
+          itemCount: spots.length,
+          itemBuilder: (context, index) => _SpotCard(spot: spots[index]),
         );
       },
+    );
+  }
+}
+
+// キャンパス/カテゴリ用のアイコン付きドロップダウン
+class _FilterDropdown extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final List<String> options;
+  final ValueChanged<String> onChanged;
+
+  const _FilterDropdown({
+    required this.icon,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18, color: Colors.grey[600]),
+        const SizedBox(width: 4),
+        DropdownButton<String>(
+          value: value,
+          items: options
+              .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+              .toList(),
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+        ),
+      ],
     );
   }
 }
@@ -366,8 +293,7 @@ class _SpotCard extends StatelessWidget {
                           onPressed: () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  SpotDetailScreen(spot: spot),
+                              builder: (_) => SpotDetailScreen(spot: spot),
                             ),
                           ),
                           style: ElevatedButton.styleFrom(

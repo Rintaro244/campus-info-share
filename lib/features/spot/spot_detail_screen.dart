@@ -129,7 +129,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('W16へ戻る'),
+                child: const Text('一覧へ戻る'),
               ),
             ],
           ),
@@ -186,24 +186,30 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
   Widget _buildImageCarousel() {
     final urls = _spot.imageUrls;
     if (urls.isEmpty) {
-      return Container(
-        height: 140,
-        color: Colors.grey[200],
-        child: const Center(
-            child: Icon(Icons.place, size: 56, color: Colors.grey)),
+      return AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Container(
+          color: Colors.grey[200],
+          child: const Center(
+              child: Icon(Icons.place, size: 56, color: Colors.grey)),
+        ),
       );
     }
-    return SizedBox(
-      height: 140,
-      child: PageView.builder(
-        itemCount: urls.length,
-        itemBuilder: (context, index) => Image.network(
-          urls[index],
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => Container(
-            color: Colors.grey[200],
-            child: const Center(
-                child: Icon(Icons.broken_image, color: Colors.grey)),
+    // 画面幅に追従する16:9の領域に、BoxFit.containで画像全体を収める（見切れ防止）
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Container(
+        color: Colors.grey[100],
+        child: PageView.builder(
+          itemCount: urls.length,
+          itemBuilder: (context, index) => Image.network(
+            urls[index],
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => Container(
+              color: Colors.grey[200],
+              child: const Center(
+                  child: Icon(Icons.broken_image, color: Colors.grey)),
+            ),
           ),
         ),
       ),
