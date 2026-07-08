@@ -122,7 +122,7 @@ class PastExamController extends ChangeNotifier {
         professorName: professorName,
         fileUrls: fileUrls,
         createdAt: DateTime.now(),
-        userId: 'dummy_user_id', 
+        userId: 'dummy_user_123', 
       );
 
       await _repository.addPastExam(newExam);

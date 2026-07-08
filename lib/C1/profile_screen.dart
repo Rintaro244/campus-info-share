@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:student_information_1/C3/user_manager.dart';
-import 'package:student_information_1/past/past_exam_repository.dart';
+import 'package:student_information_1/C3/user_manager.dart'; // 💡 環境に合わせて調整してください
+import 'package:student_information_1/past/past_exam_repository.dart'; // 💡 過去問のリポジトリ
 import 'profile_edit_screen.dart'; 
-// 💡 先ほど作ったマネージャーをインポート（パスは環境に合わせて調整してください）
 import '../C3/circle_manager.dart'; 
 import '../C3/market_manager.dart'; 
 
@@ -14,9 +13,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // 💡 ダミーデータの代わりに、本物のデータを格納する空のリストを用意
   List<Map<String, dynamic>> _myPosts = [];
-  String _userName = ''; // 💡 ユーザー名を格納する変数
+  String _userName = '';
   bool _isLoading = false;
 
   @override
@@ -25,34 +23,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchUserData(); // 画面が開かれたときに本物のデータを取得！
   }
 
-  // 🎁 本物のデータをFirestoreから取得して合体させる関数
+  // 🎁 3つのデータをFirestoreから取得して1つのリストに合体させる関数
   Future<void> _fetchUserData() async {
     setState(() { _isLoading = true; });
 
+    // TODO(本田さん): ログインモジュール完了後、ここを「現在ログイン中のユーザーUID」に差し替え
     const targetUserId = 'dummy_user_123'; 
 
-    // 💡 ユーザー名を取得
-    final fetchedName = await UserManager().fetchUserName(targetUserId);
+    try {
+      // 1. ユーザー名の取得
+      final fetchedName = await UserManager().fetchUserName(targetUserId);
 
-    final circles = await CircleManager().fetchMyCircles(targetUserId);
-    final products = await MarketManager().fetchMyProducts(targetUserId);
+      // 2. サークル・フリマのデータ取得
+      final circles = await CircleManager().fetchMyCircles(targetUserId);
+      final products = await MarketManager().fetchMyProducts(targetUserId);
 
-    final List<Map<String, dynamic>> combinedPosts = [];
-    for (var c in circles) { combinedPosts.add({'id': c.id, 'title': c.name, 'category': 'サークル', 'date': '登録済み', 'type': 'circle', 'imageUrl': c.imageUrl}); }
-    for (var p in products) { combinedPosts.add({'id': p.id, 'title': p.title, 'category': '教材', 'date': '出品済み', 'type': 'market', 'imageUrl': p.imageUrl}); }
-    
-    /*
-    for (var e in exams) {
-      combinedPosts.add({
-        'id': e.pastexamId, 'title': e.title, 'category': '過去問', 'date': '投稿済み', 'type': 'pastexam', 'imageUrl': e.fileUrls.isNotEmpty ? e.fileUrls.first : '', 
+      // 3. 過去問データの取得（ Streamから1回だけリストを取得 ）
+      final pastExamRepository = PastExamRepository();
+      final allExams = await pastExamRepository.getPastExamsStream().first; 
+      // 自分のIDのデータだけに絞り込む
+      final myExams = allExams.where((exam) => exam.userId == targetUserId).toList();
+
+      final List<Map<String, dynamic>> combinedPosts = [];
+
+      // サークルの変換
+      for (var c in circles) {
+        combinedPosts.add({
+          'id': c.id,
+          'title': c.name,
+          'category': 'サークル', 
+          'date': '登録済み',
+          'type': 'circle', // 判別用
+          'imageUrl': c.imageUrl,
+        });
+      }
+
+      // フリマの変換
+      for (var p in products) {
+        combinedPosts.add({
+          'id': p.id,
+          'title': p.title,
+          'category': '教材', 
+          'date': '出品済み',
+          'type': 'market', // 判別用
+          'imageUrl': p.imageUrl,
+        });
+      }
+
+      // ✨ 過去問の変換（追加！）
+      for (var exam in myExams) {
+        combinedPosts.add({
+          'id': exam.pastexamId,
+          'title': exam.title,
+          'category': '過去問', 
+          // 日付を見やすくフォーマット
+          'date': '${exam.createdAt.year}/${exam.createdAt.month}/${exam.createdAt.day}',
+          'type': 'past_exam', // 判別用
+          'fileUrls': exam.fileUrls, // 削除時に使う画像のURLリスト
+        });
+      }
+
+      setState(() {
+        _userName = fetchedName;
+        _myPosts = combinedPosts;
+        _isLoading = false;
       });
-    */
-
-    setState(() {
-      _userName = fetchedName; // 💡 取得した名前をセット
-      _myPosts = combinedPosts;
-      _isLoading = false;
-    });
+    } catch (e) {
+      print('【エラー】データ取得失敗: $e');
+      setState(() { _isLoading = false; });
+    }
   }
 
   @override
@@ -78,6 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             backgroundColor: Colors.grey[200],
             child: const Icon(Icons.person, size: 50, color: Colors.grey),
           ),
+          const SizedBox(height: 16),
           Text(_userName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           Padding(
@@ -85,10 +125,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: OutlinedButton(
               onPressed: () async {
                 final result = await Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => ProfileEditScreen(currentName: _userName)),
+                  MaterialPageRoute(builder: (context) => ProfileEditScreen(currentName: _userName))
                 );
+                
                 if (result == true) {
-                  _fetchUserData(); // 💡 プロフィール編集後に最新のデータを取得
+                  _fetchUserData();
                 }
               },
               style: OutlinedButton.styleFrom(
@@ -102,7 +143,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 24),
           Divider(thickness: 1, color: Colors.grey[200], height: 1),
           
-          // ⑤ 過去の投稿一覧エリア
           Expanded(
             child: Container(
               color: Colors.grey[50],
@@ -124,7 +164,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   
-                  // 💡 読み込み中くるくる ＆ リスト表示部分
                   Expanded(
                     child: _isLoading 
                       ? const Center(child: CircularProgressIndicator())
@@ -175,26 +214,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             ),
                                             TextButton(
                                               onPressed: () async {
-                                                // 🗑️ 本物の削除処理！
+                                                // ✨ カテゴリに応じて削除処理を切り替え！
                                                 final postId = post['id'];
                                                 final postType = post['type'];
-                                                final imageUrl = post['imageUrl'];
 
                                                 if (postType == 'circle') {
-                                                  await CircleManager().deleteCircle(postId, imageUrl);
+                                                  await CircleManager().deleteCircle(postId, post['imageUrl']);
                                                 } else if (postType == 'market') {
-                                                  await MarketManager().deleteProduct(postId, imageUrl);
-                                                } else if (postType == 'pastexam'){
-                                                  await PastExamRepository().deletePastExam(postId, imageUrl);
+                                                  await MarketManager().deleteProduct(postId, post['imageUrl']);
+                                                } else if (postType == 'past_exam') {
+                                                  // 💡 過去問リポジトリの削除処理を呼び出す
+                                                  final imageUrls = List<String>.from(post['fileUrls'] ?? []);
+                                                  await PastExamRepository().deletePastExam(postId, imageUrls);
                                                 }
 
-                                                // ダイアログを閉じて、リストを再取得（更新）
                                                 if (context.mounted) {
                                                   Navigator.of(context).pop();
                                                   ScaffoldMessenger.of(context).showSnackBar(
                                                     SnackBar(content: Text('「${post['title']}」を削除しました')),
                                                   );
-                                                  _fetchUserData(); // 💡 削除後にリストを最新状態にする
+                                                  _fetchUserData(); // 削除後にリストを更新
                                                 }
                                               },
                                               child: const Text('削除する', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
@@ -216,7 +255,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () { /* ログアウト処理は省略 */ },
+        onPressed: () { 
+          // TODO(本田さん): ここでC2 M3 ログアウトモジュールの処理を呼び出してください
+          print("ログアウトしました");
+        },
         backgroundColor: Colors.red[400],
         elevation: 4,
         icon: const Icon(Icons.logout, color: Colors.white),
