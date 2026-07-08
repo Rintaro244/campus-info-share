@@ -13,6 +13,17 @@ enum Campus {
         '大宮' => Campus.omiya,
         _ => throw ArgumentError('不明なキャンパス値: $value'),
       };
+
+  // スポット投稿画面で地図の初期表示位置に使うキャンパスの代表座標
+  double get defaultLatitude => switch (this) {
+        Campus.toyosu => 35.660853,
+        Campus.omiya => 35.951853,
+      };
+
+  double get defaultLongitude => switch (this) {
+        Campus.toyosu => 139.795533,
+        Campus.omiya => 139.654475,
+      };
 }
 
 class Spot {
