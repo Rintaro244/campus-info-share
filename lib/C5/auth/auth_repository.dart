@@ -1,24 +1,28 @@
 //import 'package:flutter/material.dart';
-import 'package:student_information_1/exceptions/auth_exceptions.dart';
+import 'package:student_information_1/C3/user_manager.dart';
+import 'package:student_information_1/models/user_profile.dart';
+import 'package:student_information_1/shared/auth_exceptions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthRepository {
 
   //クラス間での状態を保持するためシングルトンにする
 
-  //インスタンスを1つだけ生成する
-  static final AuthRepository _instance = AuthRepository._internal();
-  //外部から呼ばれたときに同じ_instanceを返す
-  factory AuthRepository({FirebaseAuth? firebaseAuth}) {
-    if (firebaseAuth != null) {
-      //テスト用
-      _instance._firebaseAuth = firebaseAuth;
-    }
-    return _instance;
-  }
+  static AuthRepository? _instance;
 
-  //最初の1回だけ呼ばれるコンストラクタ
-  AuthRepository._internal() : _firebaseAuth = FirebaseAuth.instance;
+  //外部から初めてよばれたらインスタンスを返す
+  //2回目以降は同じ_instanceを返す
+  factory AuthRepository({FirebaseAuth? firebaseAuth}) {
+    if (_instance == null) {
+      _instance = AuthRepository._internal(firebaseAuth ?? FirebaseAuth.instance);
+    } else if (firebaseAuth != null) {
+      //テスト用モックが渡されたら上書き
+      _instance!._firebaseAuth = firebaseAuth;
+    }
+    return _instance!;
+  }
+  //コンストラクタ
+  AuthRepository._internal(this._firebaseAuth);
 
   FirebaseAuth _firebaseAuth;
 
@@ -27,7 +31,7 @@ class AuthRepository {
 
   //emailとpasswordからアカウントを仮登録する
   Future<void> createTemporaryAccount(String email, String password) async {
-    try{
+    try {
       //仮登録処理 createUserWithEmailAndPasswordからUserCredentialオブジェクトが返される
       final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(email: email, password: password);
       //UserCredentialオブジェクトに含まれるuserオブジェクトを別の変数に格納
@@ -35,8 +39,26 @@ class AuthRepository {
       if(user == null){
         throw AccountCreationFailedException();//アカウント作成失敗
       }
+
+      /* 
+      //ユーザデータをFirestoreに保存する処理
+      //mainにマージ後に実装する
+      //多分UserProfile型のユーザデータをUserManagerクラス内で作成してFirebaseに保存する手順でいけるはず
+      try {
+        final intialProfile = UserProfile(
+          uid: user.uid,
+          userName: 'USERNAME',
+          createAt: DateTime.now(),
+        );
+
+        await UserManager().createNewUser(initialProfile);
+      } catch (e) {
+        //Firestoreにユーザデータを保存できなかった場合、ユーザ仮登録を削除しエラーを投げる
+        await user.delete();
+        throw AccountSaveFailureException();
+      }*/
       
-      try{
+      try {
         //確認メール送信処理
         await user.sendEmailVerification();
       } catch (e) {
@@ -45,9 +67,9 @@ class AuthRepository {
 
     } on FirebaseAuthException catch(e){
       //FirebaseAuthExceptionの例外コードに応じてエラーを投げる
-      if(e.code == 'email-already-in-use'){
+      if (e.code == 'email-already-in-use'){
         throw EmailAlreadyInUseException();//メールアドレス重複
-      }else if(e.code == 'network-request-failed'){
+      } else if (e.code == 'network-request-failed') {
         throw NetworkException();//ネットワークエラー
       }
       throw  Exception('不明なエラー: ${e.code}');
@@ -56,9 +78,9 @@ class AuthRepository {
 
   //メール認証が完了しているかどうかを判定する
   Future<void> checkEmailVerification() async {
-    try{
+    try {
       final user = _firebaseAuth.currentUser;
-      if(user == null){
+      if (user == null) {
         throw InvalidUserSessionException();//セッション無効
       }
 
@@ -88,7 +110,7 @@ class AuthRepository {
       _multiFactorResolver = e.resolver;
       throw MultiFactorAuthRequiredException();
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'wrong-password' || e.code == 'user-not-found' || e.code == 'invalid-credential') {
+      if (e.code == 'wrong-password' || e.code == 'user-not-found' || e.code == 'invalid-credential' || e.code == 'invalid-email') {
         throw InvalidCredentialException();//入力間違い
       } else if (e.code == 'network-request-failed') {
         throw NetworkException();//ネットワークエラー
@@ -191,5 +213,22 @@ class AuthRepository {
     final enrolledFactors = await user.multiFactor.getEnrolledFactors();
     //空でなければtrue返す
     return enrolledFactors.isNotEmpty;
+  }
+
+  //アカウント削除処理
+  Future<void> deleteCurrentUser() async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user != null) {
+        await user.delete();
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'network-request-failed') {
+        throw NetworkException();
+      }
+      throw Exception('アカウント削除に失敗しました: ${e.code}');
+    } catch (e) {
+      throw Exception('不明なエラー');
+    }
   }
 }

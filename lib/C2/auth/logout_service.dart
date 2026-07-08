@@ -1,6 +1,6 @@
 //import 'package:flutter/material.dart';
-import 'package:student_information_1/exceptions/auth_exceptions.dart';
-import 'package:student_information_1/C5/auth_repository.dart';
+import 'package:student_information_1/shared/auth_exceptions.dart';
+import 'package:student_information_1/C5/auth/auth_repository.dart';
 
 class LogoutService{
   //C5クラスインスタンス
@@ -16,7 +16,7 @@ class LogoutService{
     } on SignOutFailureException {
       rethrow;
     } catch (e){
-      throw Exception('不明なエラー');
+      throw Exception(e.toString());
     }
   }
 }

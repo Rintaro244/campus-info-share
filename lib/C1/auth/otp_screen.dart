@@ -10,13 +10,13 @@ class OtpScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('2段階認証')),
+      appBar: AppBar(title: const Text('OTP認証')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('認証アプリに表示されている6桁のコード(数字)を入力してください。'),
+            const Text('Microsoft Authenticatorで表示された6桁のワンタイムパスワードコードを入力してください'),
             TextField(
               controller: _otpController,
               decoration: const InputDecoration(labelText: '認証コード'),
@@ -32,6 +32,8 @@ class OtpScreen extends StatelessWidget {
                   Navigator.pushReplacementNamed(context, '/home');
                 } catch (e) {
                   if (!context.mounted) return;
+                  //エラー表示が順番待ちにならないように前のものを消す
+                  ScaffoldMessenger.of(context).clearSnackBars();
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),);
                 }
               },

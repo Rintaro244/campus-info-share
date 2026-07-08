@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:student_information_1/C2/mfa_setup_service.dart';
-import 'package:student_information_1/C5/auth_repository.dart';
-import 'package:student_information_1/exceptions/auth_exceptions.dart';
+import 'package:student_information_1/C2/auth/mfa_setup_service.dart';
+import 'package:student_information_1/C5/auth/auth_repository.dart';
+import 'package:student_information_1/shared/auth_exceptions.dart';
 
 // =======================================================
 // 1. 手動で作成するC5層の偽物（Fakeクラス）
@@ -35,6 +35,8 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> requestVerifyOTP(String otpCode) => throw UnimplementedError();
   @override
   Future<void> requestSignOut() => throw UnimplementedError();
+  @override
+  Future<void> deleteCurrentUser() => throw UnimplementedError();
 }
 
 // =======================================================
@@ -75,11 +77,12 @@ void main() {
       );
     });
 
-    test('異常系: 予期せぬエラー時、「不明なエラー」として Exception を投げること', () async {
-      fakeAuthRepository.errorToThrow = Exception('謎のサーバーダウン');
+    // initiateMfaSetup の異常系テスト（グループの最後）を以下に差し替え
+    test('異常系: その他の例外発生時、Exception がそのまま伝播すること', () async {
+      fakeAuthRepository.errorToThrow = Exception('URL発行テストエラー');
       expect(
         () => mfaSetupService.initiateMfaSetup(),
-        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('不明なエラー'))),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('URL発行テストエラー'))),
       );
     });
   });
@@ -93,12 +96,12 @@ void main() {
       await expectLater(mfaSetupService.finalizeMfaEnrollment('123456'), completes);
     });
 
-    test('異常系: 入力チェックで弾かれた場合（5桁以下など）、通信前に InvalidOtpException を投げること', () async {
+    /*test('異常系: 入力チェックで弾かれた場合（5桁以下など）、通信前に InvalidOtpException を投げること', () async {
       expect(
         () => mfaSetupService.finalizeMfaEnrollment('12345'), // 5桁
         throwsA(isA<InvalidOtpException>()),
       );
-    });
+    });*/
 
     test('異常系: セッションが無効な場合、InvalidMfaSetupSessionException を投げること', () async {
       fakeAuthRepository.errorToThrow = InvalidMfaSetupSessionException();
@@ -116,11 +119,12 @@ void main() {
       );
     });
 
-    test('異常系: 予期せぬエラー時、「不明なエラー」として Exception を投げること', () async {
-      fakeAuthRepository.errorToThrow = Exception('謎のサーバーダウン');
+    // finalizeMfaEnrollment の異常系テスト（グループの最後）を以下に差し替え
+    test('異常系: その他の例外発生時、Exception がそのまま伝播すること', () async {
+      fakeAuthRepository.errorToThrow = Exception('MFA登録テストエラー');
       expect(
         () => mfaSetupService.finalizeMfaEnrollment('123456'),
-        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('不明なエラー'))),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('MFA登録テストエラー'))),
       );
     });
   });
@@ -128,7 +132,7 @@ void main() {
   // ---------------------------------------------------------
   // validateOtpInput() のテスト（単体バリデーションテスト）
   // ---------------------------------------------------------
-  group('MfaSetupService - validateOtpInput (バリデーション単体) のテスト', () {
+  /*group('MfaSetupService - validateOtpInput (バリデーション単体) のテスト', () {
     test('正常系: 6桁の数字なら true を返すこと', () {
       expect(mfaSetupService.validateOtpInput('000000'), isTrue);
       expect(mfaSetupService.validateOtpInput('999999'), isTrue);
@@ -142,7 +146,7 @@ void main() {
       expect(mfaSetupService.validateOtpInput('123a56'), isFalse); // 英字混じり
       expect(mfaSetupService.validateOtpInput(' 12345'), isFalse); // スペース混じり
     });
-  });
+  });*/
 
   // =======================================================
   // 3. コンストラクタ（初期化）のテスト

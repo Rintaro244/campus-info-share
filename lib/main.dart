@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'mainscreen.dart';
-import 'C1/login_screen.dart';
-import 'C1/registration_screen.dart';
-import 'C1/email_verification_screen.dart';
-import 'C1/registration_success_screen.dart';
-import 'C1/mfa_setup_screen.dart';
-import 'C1/otp_screen.dart';
+import 'C1/auth/login_screen.dart';
+import 'C1/auth/registration_screen.dart';
+import 'C1/auth/email_verification_screen.dart';
+import 'C1/auth/registration_success_screen.dart';
+import 'C1/auth/mfa_setup_screen.dart';
+import 'C1/auth/otp_screen.dart';
 
 // firebase_options.dart は共有Firebase(campus-info-share)用を
 // リポジトリ管理し、班全員で同一のものを使用する。

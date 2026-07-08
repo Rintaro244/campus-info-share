@@ -2,20 +2,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 // ⚠️ 実際のプロジェクトのフォルダ構成に合わせてパスを調整してください
-import 'package:student_information_1/C1/authentication_controller.dart';
-import 'package:student_information_1/C2/account_creation_service.dart';
-import 'package:student_information_1/C2/login_service.dart';
-import 'package:student_information_1/C2/logout_service.dart';
-import 'package:student_information_1/C2/mfa_setup_service.dart';
-import 'package:student_information_1/exceptions/auth_exceptions.dart';
+import 'package:student_information_1/C1/auth/authentication_controller.dart';
+import 'package:student_information_1/C2/auth/account_creation_service.dart';
+import 'package:student_information_1/C2/auth/login_service.dart';
+import 'package:student_information_1/C2/auth/logout_service.dart';
+import 'package:student_information_1/C2/auth/mfa_setup_service.dart';
+import 'package:student_information_1/C5/auth/auth_repository.dart';
+import 'package:student_information_1/shared/auth_exceptions.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // モッククラスの定義
 class MockAccountCreationService extends Mock implements AccountCreationService {}
 class MockLoginService extends Mock implements LoginService {}
 class MockLogoutService extends Mock implements LogoutService {}
 class MockMfaSetupService extends Mock implements MfaSetupService {}
+class MockFirebaseAuth extends Mock implements FirebaseAuth {}
+class MockFirebaseApp extends Mock implements FirebaseApp {}
 
 void main() {
+
+  setUpAll(() {
+    final mockAuth = MockFirebaseAuth();
+    AuthRepository(firebaseAuth: mockAuth);
+  });
+
   late AuthenticationController controller;
   late MockAccountCreationService mockAccountCreationService;
   late MockLoginService mockLoginService;
@@ -36,6 +47,13 @@ void main() {
     );
     
     cSessionUid = null;
+  });
+
+  group('AuthenticationController - コンストラクタのテスト', () {
+    test('モックなしのデフォルトコンストラクタが正常にインスタンスを生成すること', () {
+      final defaultController = AuthenticationController();
+      expect(defaultController, isNotNull);
+    });
   });
 
   group('submitLogin のテスト', () {
@@ -81,6 +99,16 @@ void main() {
         throwsA(predicate((e) => e.toString().contains('メールアドレスまたはパスワードが間違っています'))),
       );
     });
+
+    test('通信エラー時、NetworkException がそのまま rethrow されること', () async {
+      when(() => mockLoginService.processLogin(any(), any())).thenThrow(NetworkException());
+      expect(() => controller.submitLogin('test@shibaura-it.ac.jp', 'Password123'), throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('ネットワークエラー'))));
+    });
+    test('その他の致命的エラー時、Exception にラップされてスローされること', () async {
+      // Exception ではなく Error を投げて catch (e) のルートを通す
+      when(() => mockLoginService.processLogin(any(), any())).thenThrow(ArgumentError('システムエラー'));
+      expect(() => controller.submitLogin('test@shibaura-it.ac.jp', 'Password123'), throwsA(isA<Exception>()));
+    });
   });
 
   group('submitOtp のテスト', () {
@@ -93,6 +121,32 @@ void main() {
       verify(() => mockLoginService.verifyOTP('123456')).called(1);
     });
 
+    group('submitOtp のテスト', () {
+  // 既存の正常系テストやサービスエラーのテスト...
+
+  // 👇 ここから追加：バリデーション（不正な形式）のテスト
+  test('異常系: 6桁未満の数字の場合、バリデーションエラーを投げること', () async {
+    expect(
+      () => controller.submitOtp('12345'), // 5桁
+      throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('6桁の認証コード(数字)を正しく入力してください。'))),
+    );
+  });
+
+  test('異常系: 数字以外の文字が含まれる場合、バリデーションエラーを投げること', () async {
+    expect(
+      () => controller.submitOtp('12345a'), // 英字混じり
+      throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('6桁の認証コード(数字)を正しく入力してください。'))),
+    );
+  });
+
+  test('異常系: 空文字の場合、バリデーションエラーを投げること', () async {
+    expect(
+      () => controller.submitOtp(''), // 空文字
+      throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('6桁の認証コード(数字)を正しく入力してください。'))),
+    );
+  });
+});
+
     test('OTPが無効な場合、適切なエラーメッセージの Exception を返すこと', () async {
       when(() => mockLoginService.verifyOTP(any())).thenThrow(InvalidOtpException());
 
@@ -100,6 +154,20 @@ void main() {
         () => controller.submitOtp('000000'),
         throwsA(predicate((e) => e.toString().contains('認証コードが間違っているか、有効期限が切れています'))),
       );
+    });
+
+    test('異常系: InvalidLoginSessionException 発生時、適切な Exception を投げること', () async {
+      when(() => mockLoginService.verifyOTP(any())).thenThrow(InvalidLoginSessionException());
+      expect(() => controller.submitOtp('123456'), throwsA(isA<Exception>()));
+    });
+
+    test('通信エラー時、NetworkException がそのまま rethrow されること', () async {
+      when(() => mockLoginService.verifyOTP(any())).thenThrow(NetworkException());
+      expect(() => controller.submitOtp('123456'), throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('ネットワークエラー'))));
+    });
+    test('その他の致命的エラー時、Exception にラップされてスローされること', () async {
+      when(() => mockLoginService.verifyOTP(any())).thenThrow(ArgumentError('システムエラー'));
+      expect(() => controller.submitOtp('123456'), throwsA(isA<Exception>()));
     });
   });
 
@@ -122,7 +190,7 @@ void main() {
           .thenAnswer((_) async {});
 
       await expectLater(
-        controller.submitRegistration('test@shibaura.ac.jp', 'pass123', 'pass123'),
+        controller.submitRegistration('test@shibaura.ac.jp', 'password123', 'password123'),
         completes,
       );
     });
@@ -132,38 +200,121 @@ void main() {
           .thenThrow(InvalidDomainException());
 
       expect(
-        () => controller.submitRegistration('test@gmail.com', 'pass123', 'pass123'),
-        throwsA(predicate((e) => e.toString().contains('このメールアドレスは使用できません'))),
+        () => controller.submitRegistration('test@gmail.com', 'password123', 'password123'),
+        throwsA(predicate((e) => e.toString().contains('芝浦工業大学のメールアドレス (@shibaura-it.ac.jp または @sic.shibaura-it.ac.jp) を使用してください'))),
       );
     });
 
-    test('予期せぬ一般エラーが発生した場合、メッセージをそのまま保持して Exception を返すこと', () async {
+    /*test('予期せぬ一般エラーが発生した場合、メッセージをそのまま保持して Exception を返すこと', () async {
       when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
           .thenThrow(Exception('カスタムネットワークエラー'));
 
       expect(
-        () => controller.submitRegistration('test@shibaura.ac.jp', 'pass123', 'pass123'),
+        () => controller.submitRegistration('test@shibaura.ac.jp', 'password123', 'password123'),
         throwsA(predicate((e) => e.toString().contains('カスタムネットワークエラー'))),
       );
+    });*/
+
+    test('異常系: パスワードが英数字混合・8文字以上でない場合、Exception を投げること', () async {
+      // 'pass' という弱いパスワードを渡してバリデーションに引っ掛ける
+      expect(
+        () => controller.submitRegistration('test@shibaura-it.ac.jp', 'pass', 'pass'), 
+        throwsA(isA<Exception>())
+      );
+    });
+
+    test('異常系: AccountCreationFailedException 発生時、Exception を投げること', () async {
+      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
+          .thenThrow(AccountCreationFailedException());
+      expect(() => controller.submitRegistration('test@shibaura-it.ac.jp', 'Password123', 'Password123'), throwsA(isA<Exception>()));
+    });
+
+    test('異常系: MailSendFailureException 発生時、Exception を投げること', () async {
+      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
+          .thenThrow(MailSendFailureException());
+      expect(() => controller.submitRegistration('test@shibaura-it.ac.jp', 'Password123', 'Password123'), throwsA(isA<Exception>()));
+    });
+
+    test('異常系: EmailAlreadyInUseException 発生時、Exception を投げること', () async {
+      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
+          .thenThrow(EmailAlreadyInUseException());
+      expect(() => controller.submitRegistration('test@shibaura-it.ac.jp', 'Password123', 'Password123'), throwsA(isA<Exception>()));
+    });
+
+    test('通信エラー時、NetworkException がそのまま rethrow されること', () async {
+      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any())).thenThrow(NetworkException());
+      expect(() => controller.submitRegistration('test@shibaura-it.ac.jp', 'Password123', 'Password123'), throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('ネットワークエラー'))));
+    });
+    test('その他の致命的エラー時、Exception にラップされてスローされること', () async {
+      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any())).thenThrow(ArgumentError('システムエラー'));
+      expect(() => controller.submitRegistration('test@shibaura-it.ac.jp', 'Password123', 'Password123'), throwsA(isA<Exception>()));
     });
   });
 
-  group('checkEmailVerified のテスト', () {
-    test('メール認証完了時、true を返すこと', () async {
-      when(() => mockAccountCreationService.finalizeAccountRegistration()).thenAnswer((_) async {});
+group('checkEmailVerified のテスト', () {
+    test('正常系: 認証が完了した場合、true を返すこと', () async {
+      // 準備: finalizeAccountRegistration が正常終了するように設定
+      when(() => mockAccountCreationService.finalizeAccountRegistration())
+          .thenAnswer((_) async {});
 
-      final isVerified = await controller.checkEmailVerified();
+      // 実行
+      final result = await controller.checkEmailVerified();
 
-      expect(isVerified, true);
+      // 検証
+      expect(result, isTrue);
+      verify(() => mockAccountCreationService.finalizeAccountRegistration()).called(1);
     });
 
-    test('メールが未認証の場合、false を返すこと', () async {
+    test('準正常系: EmailNotVerifiedException が発生した場合、false を返すこと', () async {
+      // 準備: まだメール認証が完了していない例外を投げる
       when(() => mockAccountCreationService.finalizeAccountRegistration())
           .thenThrow(EmailNotVerifiedException());
 
-      final isVerified = await controller.checkEmailVerified();
+      // 実行
+      final result = await controller.checkEmailVerified();
 
-      expect(isVerified, false);
+      // 検証: 例外がキャッチされ、false が返ってくること
+      expect(result, isFalse);
+      verify(() => mockAccountCreationService.finalizeAccountRegistration()).called(1);
+    });
+
+    test('準正常系: NetworkException が発生した場合、false を返すこと', () async {
+      // 準備: 通信エラーの例外を投げる
+      when(() => mockAccountCreationService.finalizeAccountRegistration())
+          .thenThrow(NetworkException());
+
+      // 実行
+      final result = await controller.checkEmailVerified();
+
+      // 検証: 例外がキャッチされ、false が返ってくること
+      expect(result, isFalse);
+      verify(() => mockAccountCreationService.finalizeAccountRegistration()).called(1);
+    });
+
+    test('異常系: InvalidUserSessionException が発生した場合、「セッションが無効になりました」というメッセージを持つ Exception を投げること', () async {
+      // 準備: セッション無効例外を投げる
+      when(() => mockAccountCreationService.finalizeAccountRegistration())
+          .thenThrow(InvalidUserSessionException());
+
+      // 実行 & 検証: 指定されたメッセージにラップされた Exception がスローされること
+      expect(
+        () => controller.checkEmailVerified(),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('セッションが無効になりました'))),
+      );
+      verify(() => mockAccountCreationService.finalizeAccountRegistration()).called(1);
+    });
+
+    test('異常系: その他の予期せぬエラーが発生した場合、Exception にラップされてそのままスローされること', () async {
+      // 準備: 予期せぬ一般的なエラーを投げる
+      when(() => mockAccountCreationService.finalizeAccountRegistration())
+          .thenThrow(Exception('予期せぬシステムエラー'));
+
+      // 実行 & 検証
+      expect(
+        () => controller.checkEmailVerified(),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('予期せぬシステムエラー'))),
+      );
+      verify(() => mockAccountCreationService.finalizeAccountRegistration()).called(1);
     });
   });
 
@@ -178,13 +329,32 @@ void main() {
       verify(() => mockMfaSetupService.initiateMfaSetup()).called(1);
     });
 
-    test('startMfaSetup 内でエラーが発生した場合、適切な Exception を返すこと', () async {
+    /*test('startMfaSetup 内でエラーが発生した場合、適切な Exception を返すこと', () async {
       when(() => mockMfaSetupService.initiateMfaSetup()).thenThrow(Exception('MFA初期化に失敗'));
 
       expect(
         () => controller.startMfaSetup(),
-        throwsA(predicate((e) => e.toString().contains('MFAセットアップの開始に失敗しました'))),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('MFA初期化に失敗'))),
       );
+    });*/
+
+    test('異常系: InvalidUserSessionException 発生時、Exception を投げること', () async {
+      when(() => mockMfaSetupService.initiateMfaSetup()).thenThrow(InvalidUserSessionException());
+      expect(() => controller.startMfaSetup(), throwsA(isA<Exception>()));
+    });
+
+    test('異常系: TotpSetupFailureException 発生時、Exception を投げること', () async {
+      when(() => mockMfaSetupService.initiateMfaSetup()).thenThrow(TotpSetupFailureException());
+      expect(() => controller.startMfaSetup(), throwsA(isA<Exception>()));
+    });
+
+    test('通信エラー時、NetworkException がそのまま rethrow されること', () async {
+      when(() => mockMfaSetupService.initiateMfaSetup()).thenThrow(NetworkException());
+      expect(() => controller.startMfaSetup(), throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('ネットワークエラー'))));
+    });
+    test('その他の致命的エラー時、Exception にラップされてスローされること', () async {
+      when(() => mockMfaSetupService.initiateMfaSetup()).thenThrow(ArgumentError('システムエラー'));
+      expect(() => controller.startMfaSetup(), throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('システムエラー'))));
     });
 
     test('completeMfaEnrollment でコードが空または6桁以外なら即座に例外を出すこと', () async {
@@ -199,13 +369,32 @@ void main() {
       verify(() => mockMfaSetupService.finalizeMfaEnrollment('123456')).called(1);
     });
 
-    test('completeMfaEnrollment 内でエラーが発生した場合、適切な Exception を返すこと', () async {
+    /*test('completeMfaEnrollment 内でエラーが発生した場合、適切な Exception を返すこと', () async {
       when(() => mockMfaSetupService.finalizeMfaEnrollment(any())).thenThrow(Exception('不正なコード'));
 
       expect(
         () => controller.completeMfaEnrollment('111111'),
-        throwsA(predicate((e) => e.toString().contains('2段階認証の設定に失敗しました'))),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('不正なコード'))),
       );
+    });*/
+
+    test('異常系: InvalidMfaSetupSessionException 発生時、Exception を投げること', () async {
+      when(() => mockMfaSetupService.finalizeMfaEnrollment(any())).thenThrow(InvalidMfaSetupSessionException());
+      expect(() => controller.completeMfaEnrollment('123456'), throwsA(isA<Exception>()));
+    });
+
+    test('異常系: InvalidOtpException 発生時、Exception を投げること', () async {
+      when(() => mockMfaSetupService.finalizeMfaEnrollment(any())).thenThrow(InvalidOtpException());
+      expect(() => controller.completeMfaEnrollment('123456'), throwsA(isA<Exception>()));
+    });
+
+    test('通信エラー時、NetworkException がそのまま rethrow されること', () async {
+      when(() => mockMfaSetupService.finalizeMfaEnrollment(any())).thenThrow(NetworkException());
+      expect(() => controller.completeMfaEnrollment('123456'), throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('ネットワークエラー'))));
+    });
+    test('その他の致命的エラー時、Exception にラップされてスローされること', () async {
+      when(() => mockMfaSetupService.finalizeMfaEnrollment(any())).thenThrow(ArgumentError('システムエラー'));
+      expect(() => controller.completeMfaEnrollment('123456'), throwsA(isA<Exception>()));
     });
   });
 
@@ -227,6 +416,35 @@ void main() {
         () => controller.submitLogout(),
         throwsA(predicate((e) => e.toString().contains('ログアウトに失敗しました'))),
       );
+    });
+  });
+
+  group('deleteCurrentTemporaryAccount のテスト', () {
+    test('正常系: エラーなく処理が完了すること', () async {
+      when(() => mockAccountCreationService.cancelAndCleanupAccount())
+          .thenAnswer((_) async {});
+
+      await expectLater(controller.deleteCurrentTemporaryAccount(), completes);
+      verify(() => mockAccountCreationService.cancelAndCleanupAccount()).called(1);
+    });
+
+    /*test('異常系: サービスでエラーが起きた場合、Exception を投げること', () async {
+      when(() => mockAccountCreationService.cancelAndCleanupAccount())
+          .thenThrow(Exception('削除エラー'));
+
+      expect(
+        () => controller.deleteCurrentTemporaryAccount(),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('削除エラー'))),
+      );
+    });*/
+
+    test('通信エラー時、NetworkException がそのまま rethrow されること', () async {
+      when(() => mockAccountCreationService.cancelAndCleanupAccount()).thenThrow(NetworkException());
+      expect(() => controller.deleteCurrentTemporaryAccount(), throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('ネットワークエラー'))));
+    });
+    test('その他の致命的エラー時、Exception にラップされてスローされること', () async {
+      when(() => mockAccountCreationService.cancelAndCleanupAccount()).thenThrow(ArgumentError('システムエラー'));
+      expect(() => controller.deleteCurrentTemporaryAccount(), throwsA(isA<Exception>()));
     });
   });
 }

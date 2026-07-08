@@ -1,6 +1,6 @@
 //import 'package:flutter/material.dart';
-import 'package:student_information_1/exceptions/auth_exceptions.dart';
-import 'package:student_information_1/C5/auth_repository.dart';
+import 'package:student_information_1/shared/auth_exceptions.dart';
+import 'package:student_information_1/C5/auth/auth_repository.dart';
 
 class AccountCreationService{
 
@@ -34,7 +34,7 @@ class AccountCreationService{
     } on NetworkException {
       rethrow;
     } catch (e) {
-      throw Exception('不明なエラー');
+      throw Exception(e.toString());
     }
   }
 
@@ -55,9 +55,21 @@ class AccountCreationService{
     } on NetworkException {
       rethrow;
     } catch (e) {
-      throw Exception('不明なエラー');
+      throw Exception(e.toString());
     }
   }
+
+  //アカウント削除処理
+  Future<void> cancelAndCleanupAccount() async {
+    try {
+      await _authRepository.deleteCurrentUser();
+    } on NetworkException {
+      rethrow;
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
 
   //芝浦工業大学のドメインならtrue, そうでないならfalseを返す
   bool validateDomain(String emailAddress){

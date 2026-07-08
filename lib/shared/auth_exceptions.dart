@@ -31,4 +31,6 @@ class SignOutFailureException implements Exception {}
 //MFA登録が必要な場合
 class MfaSetupRequiredException implements Exception {}
 //アカウント作成時パスワード制限エラー
-class WeakPasseordException implements Exception {}
+//class WeakPasswordException implements Exception {} //フロントエンド部分で処理するので不要
+//アカウントデータ保存エラー
+class AccountSaveFailureException implements Exception {}

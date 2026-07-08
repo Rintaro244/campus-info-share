@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:student_information_1/C2/logout_service.dart';
-import 'package:student_information_1/C5/auth_repository.dart';
-import 'package:student_information_1/exceptions/auth_exceptions.dart';
+import 'package:student_information_1/C2/auth/logout_service.dart';
+import 'package:student_information_1/C5/auth/auth_repository.dart';
+import 'package:student_information_1/shared/auth_exceptions.dart';
 
 // =======================================================
 // 1. mocktail を使って依存する C5層の偽物（Mock）を作成
@@ -53,22 +53,18 @@ void main() {
       verify(() => mockAuthRepository.requestSignOut()).called(1);
     });
     
-    test('異常系: 予期せぬエラーが発生した場合、「不明なエラー」として Exception を投げること', () async {
+    
+    test('異常系: 予期せぬエラーが発生した場合、元の Exception をそのまま投げること', () async {
       // 準備: AuthRepositoryが、想定していない標準のException（予期せぬエラー）を投げるように設定
       when(() => mockAuthRepository.requestSignOut()).thenThrow(Exception('謎のサーバーダウン'));
 
-      // 実行＆検証: サービス側がそれをキャッチし、「不明なエラー」という文字を含むExceptionに変換して投げるか確認
+      // 実行＆検証: サービス側がそれをキャッチし、そのまま上に投げることを検証
       expect(
         () => logoutService.processLogout(),
-        throwsA(
-          isA<Exception>().having(
-            (e) => e.toString(), 
-            'message', 
-            contains('不明なエラー') // 👈 ここで文字が一致するかチェックしています
-          )
-        ),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('謎のサーバーダウン'))),
       );
 
+      // メソッドが呼ばれたことを確認
       verify(() => mockAuthRepository.requestSignOut()).called(1);
     });
   });

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:student_information_1/C2/account_creation_service.dart';
-import 'package:student_information_1/C5/auth_repository.dart';
-import 'package:student_information_1/exceptions/auth_exceptions.dart';
+import 'package:student_information_1/C2/auth/account_creation_service.dart';
+import 'package:student_information_1/C5/auth/auth_repository.dart';
+import 'package:student_information_1/shared/auth_exceptions.dart';
 
 // =======================================================
 // 1. 手動で作成するC5層の偽物（Fakeクラス）
@@ -33,6 +33,10 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> enrollTotpMfa(String otpCode) => throw UnimplementedError();
   @override
   Future<void> requestSignOut() => throw UnimplementedError();
+  @override
+  Future<void> deleteCurrentUser() async {
+    if (errorToThrow != null) throw errorToThrow!;
+  }
 }
 
 // =======================================================
@@ -71,13 +75,6 @@ void main() {
       );
     });
 
-    test('異常系: パスワードが一致しない場合、PasswordMismatchException で弾かれること', () async {
-      expect(
-        () => accountService.requestAccountCreation(validEmail, validPassword, 'wrong_password'),
-        throwsA(isA<PasswordMismatchException>()),
-      );
-    });
-
     test('異常系: C5から EmailAlreadyInUseException が投げられた場合、そのまま投げること', () async {
       fakeAuthRepository.errorToThrow = EmailAlreadyInUseException();
       expect(
@@ -110,11 +107,11 @@ void main() {
       );
     });
 
-    test('異常系: 予期せぬエラー時、「不明なエラー」として Exception を投げること', () async {
-      fakeAuthRepository.errorToThrow = Exception('謎のサーバーダウン');
+    test('異常系: 予期せぬエラー時、「テストエラー」として Exception を投げること', () async {
+      fakeAuthRepository.errorToThrow = Exception('テストエラー');
       expect(
         () => accountService.requestAccountCreation(validEmail, validPassword, validPassword),
-        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('不明なエラー'))),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('テストエラー'))),
       );
     });
   });
@@ -150,11 +147,11 @@ void main() {
       );
     });
 
-    test('異常系: 予期せぬエラー時、「不明なエラー」として Exception を投げること', () async {
-      fakeAuthRepository.errorToThrow = Exception('謎のサーバーダウン');
+    test('異常系: 予期せぬエラー時、「テストエラー」として Exception を投げること', () async {
+      fakeAuthRepository.errorToThrow = Exception('テストエラー');
       expect(
         () => accountService.finalizeAccountRegistration(),
-        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('不明なエラー'))),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('テストエラー'))),
       );
     });
   });
@@ -177,16 +174,28 @@ void main() {
       expect(accountService.validateDomain(''), isFalse); // 空文字
       expect(accountService.validateDomain('shibaura-it.ac.jp'), isFalse); // @がない
     });
+  });
 
-    test('validatePassword: パスワードと確認用が一致していれば true を返すこと', () {
-      final result = accountService.validatePassword('Password123', 'Password123');
-      expect(result, isTrue);
+  group('AccountCreationService - cancelAndCleanupAccount のテスト', () {
+    test('正常系: エラーなく完了すること', () async {
+      fakeAuthRepository.errorToThrow = null;
+      await expectLater(accountService.cancelAndCleanupAccount(), completes);
     });
 
-    test('validatePassword: 一致しない、または不備がある場合は false を返すこと', () {
-      expect(accountService.validatePassword('Password123', 'Password456'), isFalse); // 不一致
-      // もし実装側で「空文字は弾く」などの処理を入れていれば、以下のテストも有効になります
-      // expect(accountService.validatePassword('', ''), isFalse); 
+    test('異常系: NetworkException がそのまま伝播すること', () async {
+      fakeAuthRepository.errorToThrow = NetworkException();
+      expect(
+        () => accountService.cancelAndCleanupAccount(),
+        throwsA(isA<NetworkException>()),
+      );
+    });
+
+    test('異常系: その他のエラーが Exception に変換されて投げられること', () async {
+      fakeAuthRepository.errorToThrow = Exception('テストエラー');
+      expect(
+        () => accountService.cancelAndCleanupAccount(),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('テストエラー'))),
+      );
     });
   });
 }

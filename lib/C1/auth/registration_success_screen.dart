@@ -6,7 +6,7 @@ class RegistrationSuccessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('登録完了')),
+      appBar: AppBar(title: const Text('アカウント作成完了')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

@@ -1,26 +1,24 @@
 import 'package:flutter/material.dart';
 import 'authentication_controller.dart';
 
-class RegistrationScreen extends StatefulWidget {
-  const RegistrationScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  State<RegistrationScreen> createState() => _RegistrationScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _RegistrationScreenState extends State<RegistrationScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final _controller = AuthenticationController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _passwordConfirmController = TextEditingController();
 
   bool _isPasswordObscure = true;
-  bool _isConfiremPasswordObscure = true;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('アカウント新規作成')),
+      appBar: AppBar(title: const Text('ログイン')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -66,62 +64,41 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
               ),
             ),
-            TextField(
-              controller: _passwordConfirmController,
-              obscureText: _isConfiremPasswordObscure,
-              decoration: InputDecoration(
-                labelText: 'パスワード',
-                // 👇 IconButtonの代わりにGestureDetectorを使う
-                suffixIcon: GestureDetector(
-                  // ① ボタンを「押し込んだ」瞬間にパスワードを表示
-                  onTapDown: (_) {
-                    setState(() {
-                      _isConfiremPasswordObscure = false;
-                    });
-                  },
-                  // ② ボタンから「指を離した」瞬間にパスワードを隠す
-                  onTapUp: (_) {
-                    setState(() {
-                      _isConfiremPasswordObscure = true;
-                    });
-                  },
-                  // ③ ボタンを押したまま指を画面外に「ずらして離した」時も隠す（安全対策）
-                  onTapCancel: () {
-                    setState(() {
-                      _isConfiremPasswordObscure = true;
-                    });
-                  },
-                  // アイコン
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Icon(
-                      _isConfiremPasswordObscure ? Icons.visibility_off : Icons.visibility,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-              ),
-            ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () async {
                 try {
-                  await _controller.submitRegistration(
+                  final result = await _controller.submitLogin(
                     _emailController.text,
                     _passwordController.text,
-                    _passwordConfirmController.text,
                   );
+
                   if (!context.mounted) return;
-                  
-                  // 登録処理が成功したらメール確認画面へ（現在の画面は破棄）
-                  Navigator.pushReplacementNamed(context, '/email-verification');
+
+                  if (result == 1) {
+                    // 完全ログイン成功
+                    Navigator.pushReplacementNamed(context, '/home');
+                  } else if (result == 2) {
+                    // 登録済みユーザー：OTP入力画面へ
+                    Navigator.pushNamed(context, '/otp');
+                  } else if (result == 3) {
+                    // 初回ユーザー：MFAセットアップ画面へ
+                    Navigator.pushNamed(context, '/mfa-setup');
+                  }
                 } catch (e) {
+                  if (!context.mounted) return;
+                  //エラー表示が順番待ちにならないように前のものを消す
+                  ScaffoldMessenger.of(context).clearSnackBars();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
                   );
                 }
               },
-              child: const Text('アカウント作成'),
+              child: const Text('ログイン'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/register'),
+              child: const Text('アカウント新規作成はこちら'),
             ),
           ],
         ),

@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:student_information_1/C5/auth_repository.dart';
-import 'package:student_information_1/exceptions/auth_exceptions.dart';
+import 'package:student_information_1/C5/auth/auth_repository.dart';
+import 'package:student_information_1/shared/auth_exceptions.dart';
 
 // 1. Mockの定義
 class MockFirebaseAuth extends Mock implements FirebaseAuth {}
@@ -236,6 +236,62 @@ void main() {
       when(() => mockFirebaseAuth.currentUser).thenReturn(null);
       final result = await authRepository.checkIsMfaEnrolled();
       expect(result, isFalse);
+    });
+  });
+
+  group('AuthRepository - deleteCurrentUser のテスト', () {
+    test('正常系: 現在のユーザーが存在する場合、削除が成功すること', () async {
+      final mockUser = MockUser();
+      when(() => mockFirebaseAuth.currentUser).thenReturn(mockUser);
+      when(() => mockUser.delete()).thenAnswer((_) async {});
+
+      await expectLater(authRepository.deleteCurrentUser(), completes);
+      verify(() => mockUser.delete()).called(1);
+    });
+
+    test('正常系: 現在のユーザーがnullの場合、何もしないこと', () async {
+      when(() => mockFirebaseAuth.currentUser).thenReturn(null);
+
+      await expectLater(authRepository.deleteCurrentUser(), completes);
+    });
+
+    test('異常系: ネットワークエラーの場合、NetworkException を投げること', () async {
+      final mockUser = MockUser();
+      when(() => mockFirebaseAuth.currentUser).thenReturn(mockUser);
+      when(() => mockUser.delete()).thenThrow(
+          FirebaseAuthException(code: 'network-request-failed'));
+
+      // 💡 修正: expect ではなく await expectLater を使い、() => を外す
+      await expectLater(
+        authRepository.deleteCurrentUser(),
+        throwsA(isA<NetworkException>()),
+      );
+    });
+
+    // 💡 追加: 133行目（その他のFirebaseAuthException）をカバーするテスト
+    test('異常系: その他のFirebaseAuthExceptionの場合、Exceptionを投げること', () async {
+      final mockUser = MockUser();
+      when(() => mockFirebaseAuth.currentUser).thenReturn(mockUser);
+      // 例として recent-login エラーを投げさせる
+      when(() => mockUser.delete()).thenThrow(
+          FirebaseAuthException(code: 'requires-recent-login'));
+
+      await expectLater(
+        authRepository.deleteCurrentUser(),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('アカウント削除に失敗しました'))),
+      );
+    });
+
+    test('異常系: その他のエラーの場合、Exception を投げること', () async {
+      final mockUser = MockUser();
+      when(() => mockFirebaseAuth.currentUser).thenReturn(mockUser);
+      when(() => mockUser.delete()).thenThrow(Exception('Some error'));
+
+      // 💡 修正: 135行目（不明なエラー）をカバーするテスト
+      await expectLater(
+        authRepository.deleteCurrentUser(),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('不明なエラー'))),
+      );
     });
   });
 }

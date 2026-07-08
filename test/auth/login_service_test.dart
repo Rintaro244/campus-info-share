@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:student_information_1/C2/login_service.dart';
-import 'package:student_information_1/C5/auth_repository.dart';
-import 'package:student_information_1/exceptions/auth_exceptions.dart';
+import 'package:student_information_1/C2/auth/login_service.dart';
+import 'package:student_information_1/C5/auth/auth_repository.dart';
+import 'package:student_information_1/shared/auth_exceptions.dart';
 
 // =======================================================
 // 1. 手動で作成するC5層の偽物（Fakeクラス）
@@ -36,6 +36,8 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> enrollTotpMfa(String otpCode) => throw UnimplementedError();
   @override
   Future<void> requestSignOut() => throw UnimplementedError();
+  @override
+  Future<void> deleteCurrentUser() => throw UnimplementedError();
 }
 
 // =======================================================
@@ -57,12 +59,12 @@ void main() {
       await expectLater(loginService.processLogin('test@test.com', 'pass123'), completes);
     });
 
-    test('異常系: C1のバリデーションで弾かれること', () async {
+    /*test('異常系: C1のバリデーションで弾かれること', () async {
       expect(
         () => loginService.processLogin('', ''),
         throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('メールアドレスとパスワードを入力してください'))),
       );
-    });
+    });*/
 
     test('異常系: MFA未登録の場合、MfaSetupRequiredException を投げること', () async {
       fakeAuthRepository.errorToThrow = null;
@@ -89,11 +91,12 @@ void main() {
       );
     });
 
-    test('異常系: 予期せぬエラー時、不明なエラーとして Exception を投げること', () async {
-      fakeAuthRepository.errorToThrow = Exception('想定外のシステムエラー');
+    // processLogin の異常系テスト（グループの最後）を以下に差し替え
+    test('異常系: 予期せぬエラー時、Exception がそのまま伝播すること', () async {
+      fakeAuthRepository.errorToThrow = Exception('ログインテストエラー');
       expect(
         () => loginService.processLogin('test@test.com', 'pass123'),
-        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('不明なエラー'))),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('ログインテストエラー'))),
       );
     });
   });
@@ -128,11 +131,12 @@ void main() {
       );
     });
 
-    test('異常系: 予期せぬエラー時、不明なエラーとして Exception を投げること', () async {
-      fakeAuthRepository.errorToThrow = Exception('DBクラッシュ');
+    // verifyOTP の異常系テスト（グループの最後）を以下に差し替え
+    test('異常系: 予期せぬエラー時、Exception がそのまま伝播すること', () async {
+      fakeAuthRepository.errorToThrow = Exception('OTPテストエラー');
       expect(
         () => loginService.verifyOTP('123456'),
-        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('不明なエラー'))),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('OTPテストエラー'))),
       );
     });
   });

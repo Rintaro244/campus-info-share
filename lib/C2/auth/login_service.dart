@@ -1,8 +1,6 @@
 //import 'package:flutter/material.dart';
-import 'package:student_information_1/exceptions/auth_exceptions.dart';
-import 'package:student_information_1/C5/auth_repository.dart';
-
-//例外は後で分類する
+import 'package:student_information_1/shared/auth_exceptions.dart';
+import 'package:student_information_1/C5/auth/auth_repository.dart';
 
 class LoginService{
   //C5クラスインスタンス
@@ -12,9 +10,6 @@ class LoginService{
   LoginService({AuthRepository? authRepository}): _authRepository = authRepository ?? AuthRepository();
 
   Future<void> processLogin(String emailAddress, String password) async {
-    /*if (!validateLoginInput(emailAddress, password)) {
-      throw Exception('メールアドレスとパスワードを入力してください');
-    }*/
 
     try {
       //パスワード認証依頼
@@ -38,7 +33,7 @@ class LoginService{
     } on NetworkException {
       rethrow;
     } catch (e) {
-      throw Exception('不明なエラー');
+      throw Exception(e.toString());
     }
   }
 
@@ -53,7 +48,7 @@ class LoginService{
     } on NetworkException {
       rethrow;
     } catch (e) {
-      throw Exception('不明なエラー');
+      throw Exception(e.toString());
     }
   }
 

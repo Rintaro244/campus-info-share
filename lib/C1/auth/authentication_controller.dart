@@ -1,8 +1,8 @@
-import 'package:student_information_1/C2/account_creation_service.dart';
-import 'package:student_information_1/C2/login_service.dart';
-import 'package:student_information_1/C2/logout_service.dart';
-import 'package:student_information_1/C2/mfa_setup_service.dart';
-import 'package:student_information_1/exceptions/auth_exceptions.dart';
+import 'package:student_information_1/C2/auth/account_creation_service.dart';
+import 'package:student_information_1/C2/auth/login_service.dart';
+import 'package:student_information_1/C2/auth/logout_service.dart';
+import 'package:student_information_1/C2/auth/mfa_setup_service.dart';
+import 'package:student_information_1/shared/auth_exceptions.dart';
 //import 'dart:async';
 
 
@@ -49,12 +49,18 @@ class AuthenticationController {
     } on NetworkException {
       throw Exception('ネットワークエラーが発生しました');
     } catch (e) {
-      throw Exception('不明なエラー');
+      throw Exception(e.toString());
     }
   }
 
   //OTP検証時
   Future<void> submitOtp(String otpCode) async {
+    final otpRegex = RegExp(r'^\d{6}$');
+    if (!otpRegex.hasMatch(otpCode)) {
+      throw Exception('6桁の認証コード(数字)を正しく入力してください。');
+    }
+
+
     try {
       await _loginService.verifyOTP(otpCode);
 
@@ -64,7 +70,7 @@ class AuthenticationController {
     } on NetworkException {
       throw Exception('ネットワークエラーが発生しました');
     } catch (e) {
-      throw Exception('不明なエラー');
+      throw Exception(e.toString());
     }
   }
 
@@ -86,6 +92,8 @@ class AuthenticationController {
     
     try {
       await _accountCreationService.requestAccountCreation(mailAddress, password, passwordConfirm);
+    } on AccountCreationFailedException {
+      throw Exception('アカウント作成に失敗しました');
     } on InvalidDomainException {
       throw Exception('芝浦工業大学のメールアドレス (@shibaura-it.ac.jp または @sic.shibaura-it.ac.jp) を使用してください');
     } on EmailAlreadyInUseException {
@@ -95,18 +103,34 @@ class AuthenticationController {
     } on NetworkException {
       throw Exception('ネットワークエラーが発生しました');
     } catch (e) {
-      throw Exception('不明なエラー');
+      throw Exception(e.toString());
     }
   }
 
+  //メール認証時
   Future<bool> checkEmailVerified() async {
     try {
       await _accountCreationService.finalizeAccountRegistration();
       return true; // 認証完了
     } on EmailNotVerifiedException {
-      return false; // まだ認証されていない
+      return false; // まだ認証されていないので待機
+    } on NetworkException {
+      return false; // まだ認証されていないので待機
+    } on InvalidUserSessionException {
+      throw Exception('セッションが無効になりました');; //セッション無効時は終了させる
     } catch (e) {
-      return false; // その他のエラー時は待機を継続
+      throw Exception(e.toString());; // その他のエラー時は終了させる
+    }
+  }
+
+  //アカウント削除
+  Future<void> deleteCurrentTemporaryAccount() async {
+    try {
+      await _accountCreationService.cancelAndCleanupAccount();
+    } on NetworkException {
+      throw Exception('ネットワークエラーが発生しました');
+    } catch (e) {
+      throw Exception(e.toString());
     }
   }
 
@@ -123,7 +147,7 @@ class AuthenticationController {
     } on NetworkException {
       throw Exception('ネットワークエラーが発生しました');
     } catch (e) {
-      throw Exception('不明なエラー');
+      throw Exception(e.toString());
     }
     
   }
@@ -145,7 +169,7 @@ class AuthenticationController {
     } on NetworkException {
       throw Exception('ネットワークエラーが発生しました');
     } catch (e) {
-      throw Exception('不明なエラー');
+      throw Exception(e.toString());
     }
   }
 

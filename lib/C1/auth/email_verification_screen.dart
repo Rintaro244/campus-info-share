@@ -15,6 +15,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   
   // タイマーを管理する変数（破棄できるようにここに定義する）
   Timer? _timer;
+  int _tickCount = 0;
+  final int _maxTicks = 200; //3秒ごとのTickが200回呼び出されたらタイムアウト
 
   @override
   void initState() {
@@ -22,19 +24,50 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
     // 1. 画面が表示されたら、3秒ごとに実行するタイマーを開始
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) async {
-      
-      // 2. コントローラー経由でC2➔C5➔Firebaseへ認証が完了したか確認
-      final isVerified = await _controller.checkEmailVerified();
-      
-      if (isVerified) {
-        // 3. 認証が完了していたら、まずタイマーを止める（二度と動かないようにする）
+      ++_tickCount;
+
+      if (_tickCount >= _maxTicks) { 
         _timer?.cancel();
-        
-        // 4. 画面がすでに閉じられていないか安全確認（Flutterの決まり文句）
+
+        try{
+          await _controller.deleteCurrentTemporaryAccount();
+        } catch (e) {
+          print(e);
+        }
+
         if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('メール確認の期限が切れました。最初からやり直してください')));
+        Navigator.pushReplacementNamed(context, '/register');
+        return;
+      }
+      
+      try {
+        // 2. コントローラー経由でC2➔C5➔Firebaseへ認証が完了したか確認
+        final isVerified = await _controller.checkEmailVerified();
         
-        // 5. 登録完了画面（またはホーム画面）へ遷移
-        Navigator.pushReplacementNamed(context, '/registration-success');
+        if (isVerified) {
+          // 3. 認証が完了していたら、まずタイマーを止める（二度と動かないようにする）
+          _timer?.cancel();
+          
+          // 4. 画面がすでに閉じられていないか安全確認（Flutterの決まり文句）
+          if (!mounted) return;
+          
+          // 5. 登録完了画面（またはホーム画面）へ遷移
+          Navigator.pushReplacementNamed(context, '/registration-success');
+        }
+      } catch (e) {
+        _timer?.cancel();
+
+        // 裏で残っているかもしれないアカウント情報をクリーンアップ
+        try { await _controller.deleteCurrentTemporaryAccount(); } catch (_) {}
+        
+        if (!mounted) return;
+        // エラーメッセージを表示して、新規登録画面に戻す
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')))
+        );
+        Navigator.pushReplacementNamed(context, '/register');
       }
     });
   }
