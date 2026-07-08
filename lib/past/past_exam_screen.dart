@@ -24,7 +24,7 @@ class _PastExamListScreenState extends ConsumerState<PastExamListScreen> {
   }
 
   void onExamTap(PastExam exam) {
-    // 💡 詳細画面へ遷移するように修正済み
+    // 詳細画面へ遷移する
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => PastExamDetailScreen(exam: exam),
