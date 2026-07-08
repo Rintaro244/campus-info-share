@@ -5,6 +5,7 @@ import 'profile_edit_screen.dart';
 // 💡 先ほど作ったマネージャーをインポート（パスは環境に合わせて調整してください）
 import '../C3/circle_manager.dart'; 
 import '../C3/market_manager.dart'; 
+import '../C3/lecture_manager.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -37,10 +38,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final circles = await CircleManager().fetchMyCircles(targetUserId);
     final products = await MarketManager().fetchMyProducts(targetUserId);
 
+    final lectures = await LectureManager().fetchMyLectures(targetUserId);
+
     final List<Map<String, dynamic>> combinedPosts = [];
     for (var c in circles) { combinedPosts.add({'id': c.id, 'title': c.name, 'category': 'サークル', 'date': '登録済み', 'type': 'circle', 'imageUrl': c.imageUrl}); }
     for (var p in products) { combinedPosts.add({'id': p.id, 'title': p.title, 'category': '教材', 'date': '出品済み', 'type': 'market', 'imageUrl': p.imageUrl}); }
     
+    for (var l in lectures) { combinedPosts.add(l); }
+
     /*
     for (var e in exams) {
       combinedPosts.add({
@@ -186,6 +191,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   await MarketManager().deleteProduct(postId, imageUrl);
                                                 } else if (postType == 'pastexam'){
                                                   await PastExamRepository().deletePastExam(postId, imageUrl);
+                                                }
+                                                else if (postType == 'lecture') {
+                                                  await LectureManager().deleteLecture(postId);
                                                 }
 
                                                 // ダイアログを閉じて、リストを再取得（更新）
