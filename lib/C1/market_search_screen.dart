@@ -1,14 +1,16 @@
 // lib/C1/market_search_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:student_information_1/payment/models/item.dart';
+import 'package:student_information_1/payment/ui/flutter_payment_navigator.dart';
+import 'package:student_information_1/payment/ui/widgets/item_price_label.dart';
 import 'market_post_screen.dart';
-// 👇 追加：C3のモデルとマネージャーをインポート
+// 👇 C4 の教材モデル/マネージャーをインポート
 import '../C3/market_manager.dart';
-import '../C3/market_model.dart';
 import 'market_detail_screen.dart'; // 💡 詳細画面への遷移用にインポート
 
 class MarketSearchScreen extends StatefulWidget {
-  const MarketSearchScreen({Key? key}) : super(key: key);
+  const MarketSearchScreen({super.key});
 
   @override
   State<MarketSearchScreen> createState() => _MarketSearchScreenState();
@@ -17,8 +19,8 @@ class MarketSearchScreen extends StatefulWidget {
 class _MarketSearchScreenState extends State<MarketSearchScreen> {
   String _keyword = '';
   
-  // 💡 ダミーデータをやめて、Firestoreから取得したデータを入れるリスト
-  List<MarketModel> _items = [];
+  // items コレクションから取得した教材（Item）を入れるリスト
+  List<Item> _items = [];
   bool _isLoading = false; // 読み込み中くるくる表示用
 
   @override
@@ -70,17 +72,24 @@ class _MarketSearchScreenState extends State<MarketSearchScreen> {
                           return Card(
                             margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             child: ListTile(
-                              title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text(item.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-                              // 💡 値段を見やすく表示
-                              trailing: Text('¥${item.price}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 16)),
-                              onTap: () {
-                                Navigator.push(
+                              title: Text(item.displayTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Text(item.description ?? '', maxLines: 2, overflow: TextOverflow.ellipsis),
+                              // 値段（無料バッジ / ¥価格 / 価格未設定）
+                              trailing: ItemPriceLabel(price: item.price, fontSize: 16),
+                              onTap: () async {
+                                // settings.name を付けることで、決済失敗時の
+                                // backToItemDetail(popUntil) がこの詳細画面で止まる。
+                                await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => MarketDetailScreen(product: item),
+                                    settings: const RouteSettings(
+                                        name: AppRoutes.itemDetail),
+                                    builder: (context) =>
+                                        MarketDetailScreen(listingId: item.listingId),
                                   ),
                                 );
+                                // 戻ってきたら一覧を最新化（購入で sold になっている等）
+                                _fetchItems();
                               },
                             ),
                           );

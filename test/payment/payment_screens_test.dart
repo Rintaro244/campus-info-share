@@ -1,12 +1,13 @@
-/// C4 決済UI（W13/W14/W15）の画面フロー widget テスト。
+/// C4 決済UI（教材詳細 → 支払方法選択 → confirmAndPay）の画面フロー widget テスト。
 /// Riverpod の override で Firebase 依存を Fake に差し替え、
-/// 一覧 → 詳細 → 支払選択 → confirmAndPay の遷移を実画面で検証する。
+/// MarketDetailScreen（詳細）→ W15（支払選択）→ Coordinator の遷移を実画面で検証する。
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:student_information_1/C1/market_detail_screen.dart';
 import 'package:student_information_1/payment/models/item.dart';
 import 'package:student_information_1/payment/models/transaction_models.dart';
 import 'package:student_information_1/payment/payment_integration.dart';
@@ -15,7 +16,6 @@ import 'package:student_information_1/payment/services/c5_interfaces.dart';
 import 'package:student_information_1/payment/services/in_memory_pending_item_store.dart';
 import 'package:student_information_1/payment/services/item_catalog_repository.dart';
 import 'package:student_information_1/payment/ui/flutter_payment_navigator.dart';
-import 'package:student_information_1/payment/ui/screens/item_list_screen.dart';
 
 class FakeItemCatalogRepository implements ItemCatalogRepository {
   final List<Item> items;
@@ -97,17 +97,17 @@ const freeItem = Item(
   sellerId: 'seller1',
 );
 
-/// テスト用アプリを組み立てる。main.dart と同じ統合ポイントを使う。
+/// テスト用アプリを組み立てる。main.dart と同じ統合ポイント（onGeneratePaymentRoute）
+/// を使い、詳細画面を home に置いて購入フローを検証する。
 Widget buildTestApp({
+  required String listingId,
   required List<Item> catalogItems,
   required FakeItemRepository itemRepository,
   required InMemoryPendingItemStore pendingStore,
   FakeFreeTransferClient? freeTransfer,
-  GlobalKey<NavigatorState>? navigatorKey,
-  GlobalKey<ScaffoldMessengerState>? messengerKey,
 }) {
-  final navKey = navigatorKey ?? GlobalKey<NavigatorState>();
-  final msgKey = messengerKey ?? GlobalKey<ScaffoldMessengerState>();
+  final navKey = GlobalKey<NavigatorState>();
+  final msgKey = GlobalKey<ScaffoldMessengerState>();
   return ProviderScope(
     overrides: [
       currentUidProvider.overrideWithValue('buyer1'),
@@ -126,69 +126,61 @@ Widget buildTestApp({
       navigatorKey: navKey,
       scaffoldMessengerKey: msgKey,
       onGenerateRoute: onGeneratePaymentRoute,
-      home: const ItemListScreen(),
+      home: MarketDetailScreen(listingId: listingId),
     ),
   );
 }
 
 void main() {
-  testWidgets('W13: 販売中の教材が表示され、0円には無料バッジが付く', (tester) async {
+  testWidgets('詳細: 有償教材を表示し購入ボタンが活性', (tester) async {
     await tester.pumpWidget(buildTestApp(
-      catalogItems: [paidItem, freeItem],
-      itemRepository: FakeItemRepository(amount: 1500),
-      pendingStore: InMemoryPendingItemStore(),
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.text('線形代数の教科書'), findsOneWidget);
-    expect(find.text('¥1500'), findsOneWidget);
-    expect(find.text('無料の過去問集'), findsOneWidget);
-    expect(find.text('無料'), findsOneWidget);
-  });
-
-  testWidgets('W13: 教材ゼロ件は空白にせずガイドを表示する', (tester) async {
-    await tester.pumpWidget(buildTestApp(
-      catalogItems: const [],
-      itemRepository: FakeItemRepository(amount: 0),
-      pendingStore: InMemoryPendingItemStore(),
-    ));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('出品された教材はまだありません'), findsOneWidget);
-  });
-
-  testWidgets('W13→W14: カードタップで詳細が開き購入ボタンが活性', (tester) async {
-    await tester.pumpWidget(buildTestApp(
+      listingId: 'item_paid',
       catalogItems: [paidItem],
       itemRepository: FakeItemRepository(amount: 1500),
       pendingStore: InMemoryPendingItemStore(),
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('線形代数の教科書'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('教材詳細'), findsOneWidget);
+    expect(find.text('商品詳細'), findsOneWidget);
+    expect(find.text('線形代数の教科書'), findsOneWidget);
     expect(find.text('書き込みなし。'), findsOneWidget);
+    expect(find.text('¥1500'), findsOneWidget);
     final button = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, '購入する'),
     );
     expect(button.onPressed, isNotNull);
   });
 
-  testWidgets('W14→W15: 確認ダイアログを経て支払選択へ、pendingItemId がセットされる',
+  testWidgets('詳細: 0円教材は無料バッジと「無料で譲り受ける」ボタンを表示', (tester) async {
+    await tester.pumpWidget(buildTestApp(
+      listingId: 'item_free',
+      catalogItems: [freeItem],
+      itemRepository: FakeItemRepository(amount: 0),
+      pendingStore: InMemoryPendingItemStore(),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('無料'), findsOneWidget);
+    final button = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '無料で譲り受ける'),
+    );
+    expect(button.onPressed, isNotNull);
+  });
+
+  testWidgets('詳細→W15: 確認ダイアログを経て支払選択へ、pendingItemId がセットされる',
       (tester) async {
     final pendingStore = InMemoryPendingItemStore();
     await tester.pumpWidget(buildTestApp(
+      listingId: 'item_paid',
       catalogItems: [paidItem],
       itemRepository: FakeItemRepository(amount: 1500),
       pendingStore: pendingStore,
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('線形代数の教科書'));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '購入する'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('購入する'));
+    await tester.tap(find.widgetWithText(FilledButton, '購入する'));
     await tester.pumpAndSettle();
 
     // 重要操作の確認ダイアログ（要求仕様書 §4.2）
@@ -203,15 +195,16 @@ void main() {
 
   testWidgets('W15(有償): 確定で clientSecret を受領しカード入力画面へ', (tester) async {
     await tester.pumpWidget(buildTestApp(
+      listingId: 'item_paid',
       catalogItems: [paidItem],
       itemRepository: FakeItemRepository(amount: 1500),
       pendingStore: InMemoryPendingItemStore(),
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('線形代数の教科書'));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '購入する'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('購入する'));
+    await tester.tap(find.widgetWithText(FilledButton, '購入する'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('進む'));
     await tester.pumpAndSettle();
@@ -227,6 +220,7 @@ void main() {
     final pendingStore = InMemoryPendingItemStore();
     final freeTransfer = FakeFreeTransferClient();
     await tester.pumpWidget(buildTestApp(
+      listingId: 'item_free',
       catalogItems: [freeItem],
       itemRepository: FakeItemRepository(amount: 0),
       pendingStore: pendingStore,
@@ -234,7 +228,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('無料の過去問集'));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '無料で譲り受ける'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, '無料で譲り受ける'));
     await tester.pumpAndSettle();
@@ -251,6 +245,7 @@ void main() {
   testWidgets('W15(0円)失敗: エラー表示し詳細へ戻り、ロックが解除される', (tester) async {
     final itemRepository = FakeItemRepository(amount: 0);
     await tester.pumpWidget(buildTestApp(
+      listingId: 'item_free',
       catalogItems: [freeItem],
       itemRepository: itemRepository,
       pendingStore: InMemoryPendingItemStore(),
@@ -260,7 +255,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('無料の過去問集'));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '無料で譲り受ける'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, '無料で譲り受ける'));
     await tester.pumpAndSettle();
@@ -269,8 +264,8 @@ void main() {
     await tester.tap(find.text('無料で譲り受ける（確定）'));
     await tester.pumpAndSettle();
 
-    // W14 へ差し戻され、SnackBar でエラーが出る
-    expect(find.text('教材詳細'), findsOneWidget);
+    // 詳細画面へ差し戻され、SnackBar でエラーが出る
+    expect(find.text('商品詳細'), findsOneWidget);
     expect(find.textContaining('確定済み'), findsOneWidget);
     expect(itemRepository.unlockCalls, 1);
   });

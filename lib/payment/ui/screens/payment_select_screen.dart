@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:student_information_1/payment/models/item.dart';
 import 'package:student_information_1/payment/providers.dart';
-import 'package:student_information_1/payment/ui/screens/item_list_screen.dart';
+import 'package:student_information_1/payment/ui/widgets/item_price_label.dart';
 
 /// 支払方法（今回はクレジットカードのみ実装。他は将来用）。
 enum PaymentMethod { card }

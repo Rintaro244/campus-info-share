@@ -1,7 +1,7 @@
 /// 学内情報共有システム — C4 取引・決済処理部
-/// 開発用エントリポイント（Firebase エミュレータ接続 + W13 直起動）
+/// 開発用エントリポイント（Firebase エミュレータ接続 + 教材一覧 直起動）
 ///
-/// 本番 DB を汚さずに決済フロー（W13→W14→W15→確定）を手元で通すための起動口。
+/// 本番 DB を汚さずに決済フロー（一覧→詳細→支払方法選択→確定）を手元で通すための起動口。
 /// 使い方:
 ///   1. エミュレータ起動（auth:19099 / firestore:18080 / functions:15001）
 ///   2. Admin SDK 等で items に on_sale の教材をシード
@@ -16,16 +16,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:student_information_1/C1/market_search_screen.dart';
 import 'package:student_information_1/firebase_options.dart';
 import 'package:student_information_1/payment/payment_integration.dart';
 import 'package:student_information_1/payment/services/callable_error_mapper.dart';
-import 'package:student_information_1/payment/ui/screens/item_list_screen.dart';
 
 Future<void> main() async {
-  final binding = WidgetsFlutterBinding.ensureInitialized();
-  // 開発確認用: セマンティクスツリーを常時有効化する
-  // （ヘッドレスブラウザや支援技術から要素を特定できるようにする）。
-  binding.ensureSemantics();
+  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -60,7 +57,7 @@ class PaymentDevApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const ItemListScreen(),
+      home: const MarketSearchScreen(),
     );
   }
 }
