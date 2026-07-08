@@ -33,6 +33,19 @@ class PostRepository {
     }
   }
 
+  /// 全キャンパスのスポット一覧を取得する（新着順）。検索フィルタ「すべて」で使用。
+  Future<List<Spot>> getAllSpots() async {
+    try {
+      final snapshot = await _firestore
+          .collection(_spotsCollection)
+          .orderBy('createdAt', descending: true)
+          .get();
+      return snapshot.docs.map((doc) => _docToSpot(doc)).toList();
+    } on FirebaseException catch (e) {
+      throw NetworkException(e.message ?? '通信環境を確認してください');
+    }
+  }
+
   /// spotIdを参考にスポット1件を取得する。スポット一覧は取らない。
   Future<Spot> getSpotById(String spotId) async {
     try {
