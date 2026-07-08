@@ -17,12 +17,14 @@ import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import Stripe from 'stripe';
 
 import { COLLECTIONS, ITEM_FIELDS } from './constants';
 import { CoreError } from './errors';
 import { ItemDoc, TransactionDoc, StripeEventLike } from './types';
 import { createPaymentIntentCore } from './createPaymentIntent';
+import { fulfillFreeTransferCore } from './freeTransfer';
 import { handleWebhookCore } from './webhook';
 import { fulfillOrderCore, FulfillStore, TxOps } from './fulfill';
 
@@ -38,6 +40,7 @@ function mapItem(data: FirebaseFirestore.DocumentData): ItemDoc {
     price: data[ITEM_FIELDS.price],
     status: data[ITEM_FIELDS.status],
     sellerId: data[ITEM_FIELDS.sellerId],
+    buyerId: data[ITEM_FIELDS.buyerId],
   };
 }
 
@@ -100,10 +103,37 @@ export const createPaymentIntent = onCall(
   },
 );
 
+// ── (2) fulfillFreeTransfer（Callable・0円/無料譲渡の確定）───────────
+// Stripe を使わないため secrets 指定は不要。ストア・エラー変換は既存を再利用。
+export const fulfillFreeTransfer = onCall(
+  { region: 'asia-northeast1' },
+  async (request) => {
+    const buyerId = request.auth?.uid;
+    if (!buyerId) {
+      throw new HttpsError('unauthenticated', 'ログインが必要です。');
+    }
+    const listingId = request.data?.listingId;
+    if (typeof listingId !== 'string' || listingId.length === 0) {
+      throw new HttpsError('invalid-argument', 'listingId が不正です。');
+    }
+
+    try {
+      return await fulfillFreeTransferCore(makeFulfillStore(), {
+        listingId,
+        buyerId,
+      });
+    } catch (e) {
+      throw toHttpsError(e);
+    }
+  },
+);
+
 // ── fulfill 用 Firestore ストア（admin トランザクションを TxOps に適合）──
 function makeFulfillStore(): FulfillStore {
   return {
-    serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+    // admin.firestore.FieldValue は firebase-admin v12 の ESM interop で
+    // undefined になるため、サブパスから直接 import した FieldValue を使う。
+    serverTimestamp: () => FieldValue.serverTimestamp(),
     runTransaction: (work) =>
       db.runTransaction(async (t) => {
         const ops: TxOps = {
@@ -131,7 +161,7 @@ function makeFulfillStore(): FulfillStore {
   };
 }
 
-// ── (2) M4 handleStripeWebhook + M5 fulfillOrder（HTTP）──────────────
+// ── (3) M4 handleStripeWebhook + M5 fulfillOrder（HTTP）──────────────
 export const handleStripeWebhook = onRequest(
   { secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET], region: 'asia-northeast1' },
   async (req, res) => {

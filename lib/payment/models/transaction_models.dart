@@ -77,6 +77,9 @@ enum PurchaseStage {
   locking,
   creatingIntent,
   readyForPayment,
+
+  /// 0円（無料譲渡）: PaymentIntent を作らずサーバで直接確定済み。
+  completedFree,
   aborted,
 }
 

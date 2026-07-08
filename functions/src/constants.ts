@@ -24,6 +24,10 @@ export const ITEM_FIELDS = {
   sellerId: 'sellerId',
   /** 購入者 uid フィールド名（fulfill 時に書き込む）。 */
   buyerId: 'buyerId',
+  /** 教材タイトル（表示用。書き込みは将来の出品機能が担当）。 */
+  title: 'title',
+  /** 教材の説明（表示用・任意）。 */
+  description: 'description',
   updatedAt: 'updatedAt',
 } as const;
 

@@ -39,7 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final List<Map<String, dynamic>> combinedPosts = [];
     for (var c in circles) { combinedPosts.add({'id': c.id, 'title': c.name, 'category': 'サークル', 'date': '登録済み', 'type': 'circle', 'imageUrl': c.imageUrl}); }
-    for (var p in products) { combinedPosts.add({'id': p.id, 'title': p.title, 'category': '教材', 'date': '出品済み', 'type': 'market', 'imageUrl': p.imageUrl}); }
+    for (var p in products) { combinedPosts.add({'id': p.listingId, 'title': p.displayTitle, 'category': '教材', 'date': '出品済み', 'type': 'market', 'imageUrl': p.imageUrls.isNotEmpty ? p.imageUrls.first : null}); }
     
     /*
     for (var e in exams) {
