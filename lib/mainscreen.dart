@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'past_exam_screen.dart';
+import 'features/spot/spot_search_screen.dart';  // import追加
+import 'lecture/lecture_list_screen.dart'; //import追加
 import 'past/past_exam_screen.dart';
 import 'features/spot/spot_search_screen.dart'; 
 import 'C1/circle_search_screen.dart'; 
@@ -17,7 +20,7 @@ class _MainScreenState extends State<MainScreen>{
   int refreshKey = 0; //refresh tab number
 
   final List<Widget> _screens = [
-    const Center(child: Text('講義情報', style: TextStyle(fontSize: 20))),
+    const LectureListScreen(), //講義検索画面
     const PastExamListScreen(),
     const SpotSearchScreen(),  // SPOT検索画面を表示
     const CircleSearchScreen(),  // サークル投稿画面を表示
