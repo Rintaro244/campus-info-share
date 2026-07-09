@@ -10,6 +10,8 @@ export interface ItemDoc {
   price: number;
   status: string;
   sellerId?: string;
+  /** 在庫ロック保持者 / 確定後の購入者 uid（未ロックなら undefined）。 */
+  buyerId?: string;
 }
 
 /** transactions ドキュメント。 */

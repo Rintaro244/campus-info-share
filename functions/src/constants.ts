@@ -12,7 +12,25 @@ export const COLLECTIONS = {
   items: 'items',
   /** transactions は C4（私）所有のコレクション。 */
   transactions: 'transactions',
+  /** 取引成立時に自動生成する購入者⇄出品者チャットのコレクション。 */
+  chats: 'chats',
 } as const;
+
+/**
+ * chats ドキュメントのフィールド名。
+ * roomId = transactionId（chats/{transactionId}）。当事者判定は buyerId/sellerId で行う。
+ */
+export const CHAT_FIELDS = {
+  buyerId: 'buyerId',
+  sellerId: 'sellerId',
+  listingId: 'listingId',
+  transactionId: 'transactionId',
+  createdAt: 'createdAt',
+  lastMessageAt: 'lastMessageAt',
+} as const;
+
+/** chats のサブコレクション名。 */
+export const CHAT_SUBCOLLECTIONS = { messages: 'messages' } as const;
 
 /** items ドキュメントのフィールド名。 */
 export const ITEM_FIELDS = {
@@ -24,6 +42,10 @@ export const ITEM_FIELDS = {
   sellerId: 'sellerId',
   /** 購入者 uid フィールド名（fulfill 時に書き込む）。 */
   buyerId: 'buyerId',
+  /** 教材タイトル（表示用。書き込みは将来の出品機能が担当）。 */
+  title: 'title',
+  /** 教材の説明（表示用・任意）。 */
+  description: 'description',
   updatedAt: 'updatedAt',
 } as const;
 

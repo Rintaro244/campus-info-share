@@ -14,17 +14,21 @@
  * 設定方法は functions/README.md を参照。
  */
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { defineSecret } from 'firebase-functions/params';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import Stripe from 'stripe';
 
 import { COLLECTIONS, ITEM_FIELDS } from './constants';
 import { CoreError } from './errors';
 import { ItemDoc, TransactionDoc, StripeEventLike } from './types';
 import { createPaymentIntentCore } from './createPaymentIntent';
+import { fulfillFreeTransferCore } from './freeTransfer';
 import { handleWebhookCore } from './webhook';
 import { fulfillOrderCore, FulfillStore, TxOps } from './fulfill';
+import { createChatRoomCore, ChatStore } from './chatRoom';
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -38,6 +42,7 @@ function mapItem(data: FirebaseFirestore.DocumentData): ItemDoc {
     price: data[ITEM_FIELDS.price],
     status: data[ITEM_FIELDS.status],
     sellerId: data[ITEM_FIELDS.sellerId],
+    buyerId: data[ITEM_FIELDS.buyerId],
   };
 }
 
@@ -100,10 +105,37 @@ export const createPaymentIntent = onCall(
   },
 );
 
+// ── (2) fulfillFreeTransfer（Callable・0円/無料譲渡の確定）───────────
+// Stripe を使わないため secrets 指定は不要。ストア・エラー変換は既存を再利用。
+export const fulfillFreeTransfer = onCall(
+  { region: 'asia-northeast1' },
+  async (request) => {
+    const buyerId = request.auth?.uid;
+    if (!buyerId) {
+      throw new HttpsError('unauthenticated', 'ログインが必要です。');
+    }
+    const listingId = request.data?.listingId;
+    if (typeof listingId !== 'string' || listingId.length === 0) {
+      throw new HttpsError('invalid-argument', 'listingId が不正です。');
+    }
+
+    try {
+      return await fulfillFreeTransferCore(makeFulfillStore(), {
+        listingId,
+        buyerId,
+      });
+    } catch (e) {
+      throw toHttpsError(e);
+    }
+  },
+);
+
 // ── fulfill 用 Firestore ストア（admin トランザクションを TxOps に適合）──
 function makeFulfillStore(): FulfillStore {
   return {
-    serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+    // admin.firestore.FieldValue は firebase-admin v12 の ESM interop で
+    // undefined になるため、サブパスから直接 import した FieldValue を使う。
+    serverTimestamp: () => FieldValue.serverTimestamp(),
     runTransaction: (work) =>
       db.runTransaction(async (t) => {
         const ops: TxOps = {
@@ -131,7 +163,7 @@ function makeFulfillStore(): FulfillStore {
   };
 }
 
-// ── (2) M4 handleStripeWebhook + M5 fulfillOrder（HTTP）──────────────
+// ── (3) M4 handleStripeWebhook + M5 fulfillOrder（HTTP）──────────────
 export const handleStripeWebhook = onRequest(
   { secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET], region: 'asia-northeast1' },
   async (req, res) => {
@@ -169,6 +201,60 @@ export const handleStripeWebhook = onRequest(
       // TODO: それでも失敗が続く場合に備え、管理者への緊急アラート機構をここにフックする。
       logger.error('[M4/M5] webhook 処理失敗。Stripe にリトライさせる。', e);
       res.status(500).json({ error: 'internal' });
+    }
+  },
+);
+
+// ── (4) 取引成立チャット: transactions 作成 → chats 自動生成（Firestore トリガー）──
+// 【重要】決済とは完全に分離。発火時点で transaction=paid は既にコミット済みのため、
+// ここでの失敗はルーム生成を諦めるだけで決済（paid）には一切影響しない。
+// 決済コア（fulfill / freeTransfer / webhook）には依存せず、chats のみ read/write する。
+function makeChatStore(): ChatStore {
+  return {
+    serverTimestamp: () => FieldValue.serverTimestamp(),
+    getItemSellerId: async (listingId) => {
+      const snap = await db.collection(COLLECTIONS.items).doc(listingId).get();
+      if (!snap.exists) return null;
+      const sellerId = mapItem(snap.data() as FirebaseFirestore.DocumentData).sellerId;
+      return sellerId ?? null;
+    },
+    getChatRoomExists: async (roomId) => {
+      const snap = await db.collection(COLLECTIONS.chats).doc(roomId).get();
+      return snap.exists;
+    },
+    createChatRoom: async (roomId, data) => {
+      // 存在チェック済みのため merge 不要。
+      await db.collection(COLLECTIONS.chats).doc(roomId).set(data);
+    },
+  };
+}
+
+export const onTransactionCreatedCreateChat = onDocumentCreated(
+  { document: 'transactions/{txId}', region: 'asia-northeast1' },
+  async (event) => {
+    const txId = event.params.txId;
+    try {
+      const data = event.data?.data() as TransactionDoc | undefined;
+      const result = await createChatRoomCore(makeChatStore(), {
+        transactionId: txId,
+        listingId: data?.listingId,
+        buyerId: data?.buyerId,
+        status: data?.status,
+      });
+
+      // 生成不能（item/seller 不在・フィールド欠落）は要調査だが決済は成立済み。warn 止まり。
+      if (
+        result.status === 'item_or_seller_not_found' ||
+        result.status === 'missing_fields'
+      ) {
+        logger.warn(`[chat] ルーム生成スキップ: tx=${txId} reason=${result.status}`);
+      } else {
+        logger.info(`[chat] ${result.status}: tx=${txId}`);
+      }
+    } catch (e) {
+      // トリガー内の例外は握って決済へ波及させない（決済は既に paid）。
+      // throw すると無意味な自動リトライが走るだけなので握る。
+      logger.error(`[chat] ルーム生成失敗（決済には影響なし）: tx=${txId}`, e);
     }
   },
 );

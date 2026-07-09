@@ -12,6 +12,7 @@ class AppRoutes {
   static const String itemDetail = '/items/detail'; // W14 教材詳細
   static const String paymentSelect = '/payment/select'; // W15 支払方法選択
   static const String cardEntry = '/payment/card'; // 決済カード入力画面
+  static const String purchaseComplete = '/payment/complete'; // 購入完了画面
 
   const AppRoutes._();
 }
@@ -28,6 +29,17 @@ class CardEntryArgs {
     required this.paymentIntentId,
     required this.amount,
   });
+}
+
+/// 購入（譲渡）完了画面へ渡す引数。transactionId は「出品者と連絡を取る」導線に使う。
+@immutable
+class PurchaseCompleteArgs {
+  final String listingId;
+
+  /// チャットルーム ID（= transactionId）。未確定なら null（ボタン非表示）。
+  final String? transactionId;
+
+  const PurchaseCompleteArgs({required this.listingId, this.transactionId});
 }
 
 /// PaymentNavigator の Flutter 実装。GlobalKey 経由で BuildContext を
@@ -55,6 +67,17 @@ class FlutterPaymentNavigator implements PaymentNavigator {
         clientSecret: clientSecret,
         paymentIntentId: paymentIntentId,
         amount: amount,
+      ),
+    );
+  }
+
+  @override
+  void goToPurchaseComplete({required String listingId, String? transactionId}) {
+    _nav?.pushNamed(
+      AppRoutes.purchaseComplete,
+      arguments: PurchaseCompleteArgs(
+        listingId: listingId,
+        transactionId: transactionId,
       ),
     );
   }

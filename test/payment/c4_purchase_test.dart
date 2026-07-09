@@ -42,8 +42,6 @@ class FakePaymentGateway implements PaymentGatewayClient {
   @override
   Future<PaymentIntentResult> createPaymentIntent({
     required String listingId,
-    required int amount,
-    required String buyerUid,
   }) async {
     final error = intentError;
     if (error != null) {
@@ -56,8 +54,25 @@ class FakePaymentGateway implements PaymentGatewayClient {
   }
 }
 
+class FakeFreeTransferClient implements FreeTransferClient {
+  final C4Exception? transferError;
+  int calls = 0;
+  FakeFreeTransferClient({this.transferError});
+
+  @override
+  Future<String> fulfillFreeTransfer({required String listingId}) async {
+    calls++;
+    final error = transferError;
+    if (error != null) {
+      throw error;
+    }
+    return 'fulfilled';
+  }
+}
+
 class FakeNavigator implements PaymentNavigator {
   bool cardEntryShown = false;
+  bool purchaseCompleteShown = false;
   bool backToDetail = false;
   int? lastErrorCode;
 
@@ -68,6 +83,11 @@ class FakeNavigator implements PaymentNavigator {
     required int amount,
   }) {
     cardEntryShown = true;
+  }
+
+  @override
+  void goToPurchaseComplete({required String listingId, String? transactionId}) {
+    purchaseCompleteShown = true;
   }
 
   @override
@@ -124,11 +144,7 @@ void main() {
         paymentGateway: FakePaymentGateway(),
         itemRepository: repo,
       );
-      final result = await m3.createPaymentIntent(
-        listingId: 'item1',
-        amount: 1500,
-        buyerId: 'buyer1',
-      );
+      final result = await m3.createPaymentIntent(listingId: 'item1');
       expect(result.clientSecret, 'cs_test_123');
       expect(result.paymentIntentId, 'pi_test_123');
       expect(repo.unlockCalls, 0);
@@ -142,11 +158,7 @@ void main() {
         itemRepository: repo,
       );
       await expectLater(
-        () => m3.createPaymentIntent(
-          listingId: 'item1',
-          amount: 1500,
-          buyerId: 'buyer1',
-        ),
+        () => m3.createPaymentIntent(listingId: 'item1'),
         throwsA(isA<C4Exception>().having((e) => e.code, 'code', 502)),
       );
       expect(repo.unlockCalls, 1);
@@ -163,6 +175,8 @@ void main() {
           paymentGateway: FakePaymentGateway(),
           itemRepository: repo,
         ),
+        freeTransfer: FakeFreeTransferClient(),
+        itemRepository: repo,
         navigator: nav,
         pendingStore: FakePendingStore('item1'),
       );
@@ -181,6 +195,8 @@ void main() {
           paymentGateway: FakePaymentGateway(),
           itemRepository: repo,
         ),
+        freeTransfer: FakeFreeTransferClient(),
+        itemRepository: repo,
         navigator: nav,
         pendingStore: FakePendingStore(null),
       );
@@ -199,12 +215,68 @@ void main() {
           paymentGateway: FakePaymentGateway(),
           itemRepository: repo,
         ),
+        freeTransfer: FakeFreeTransferClient(),
+        itemRepository: repo,
         navigator: nav,
         pendingStore: FakePendingStore('item1'),
       );
       final session = await coordinator.confirmAndPay(buyerId: 'buyer1');
       expect(session.stage, PurchaseStage.aborted);
       expect(nav.lastErrorCode, 409);
+    });
+
+    test('0円（無料譲渡）: M3 を経由せず確定し completedFree を返す', () async {
+      final repo = FakeItemRepository(amount: 0);
+      final nav = FakeNavigator();
+      final freeTransfer = FakeFreeTransferClient();
+      final store = FakePendingStore('item1');
+      final coordinator = PurchaseFlowCoordinator(
+        m2: PurchaseControlModule(repo),
+        m3: GatewayIntegrationModule(
+          paymentGateway:
+              FakePaymentGateway(intentError: const C4Exception(502, '呼ばれてはいけない')),
+          itemRepository: repo,
+        ),
+        freeTransfer: freeTransfer,
+        itemRepository: repo,
+        navigator: nav,
+        pendingStore: store,
+      );
+
+      final session = await coordinator.confirmAndPay(buyerId: 'buyer1');
+
+      expect(session.stage, PurchaseStage.completedFree);
+      expect(session.amount, 0);
+      expect(freeTransfer.calls, 1);
+      expect(nav.purchaseCompleteShown, isTrue);
+      expect(nav.cardEntryShown, isFalse);
+      expect(store.pendingItemId, isNull);
+      expect(repo.unlockCalls, 0);
+    });
+
+    test('0円で確定失敗: ロックを解除しエラー表示して中断する', () async {
+      final repo = FakeItemRepository(amount: 0);
+      final nav = FakeNavigator();
+      final coordinator = PurchaseFlowCoordinator(
+        m2: PurchaseControlModule(repo),
+        m3: GatewayIntegrationModule(
+          paymentGateway: FakePaymentGateway(),
+          itemRepository: repo,
+        ),
+        freeTransfer:
+            FakeFreeTransferClient(transferError: const C4Exception(409, '確定済み')),
+        itemRepository: repo,
+        navigator: nav,
+        pendingStore: FakePendingStore('item1'),
+      );
+
+      final session = await coordinator.confirmAndPay(buyerId: 'buyer1');
+
+      expect(session.stage, PurchaseStage.aborted);
+      expect(repo.unlockCalls, 1);
+      expect(nav.lastErrorCode, 409);
+      expect(nav.backToDetail, isTrue);
+      expect(nav.purchaseCompleteShown, isFalse);
     });
 
     test('完了処理: c_pending_item_id をクリアする', () {
@@ -215,6 +287,8 @@ void main() {
           paymentGateway: FakePaymentGateway(),
           itemRepository: FakeItemRepository(amount: 0),
         ),
+        freeTransfer: FakeFreeTransferClient(),
+        itemRepository: FakeItemRepository(amount: 0),
         navigator: FakeNavigator(),
         pendingStore: store,
       );

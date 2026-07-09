@@ -1,0 +1,105 @@
+rules_version = '2';
+
+// 学内情報共有システム — 教材売買 items の Security Rules（C4 取引・決済）
+// item.status の保護はここで行う（Callable 化はしない方針）。
+// status -> 'sold' はクライアント禁止。fulfill(M5) の Admin SDK のみが行う（Rules をバイパス）。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /items/{listingId} {
+
+      // 一覧表示のため read は全員許可
+      allow read: if true;
+
+      // 出品(create): ログイン済みの出品者本人のみ。初期状態は必ず on_sale・
+      // 買い手なし。価格は 0〜100,000円。タイトルは 1〜40文字。
+      // （価格・タイトルの範囲は MarketValidator と一致させる）
+      allow create: if request.auth != null
+                    && request.resource.data.sellerId == request.auth.uid
+                    && request.resource.data.status == 'on_sale'
+                    && request.resource.data.price is int
+                    && request.resource.data.price >= 0
+                    && request.resource.data.price <= 100000
+                    && request.resource.data.get('buyerId', null) == null
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 40;
+
+      // 削除はクライアント不可（出品取消は別タスク・現時点スコープ外）
+      allow delete: if false;
+
+      // update: ログイン済み + price/sellerId 不変 + (ロック or アンロック) のみ
+      allow update: if request.auth != null
+                    && priceSellerUnchanged()
+                    && (isLock() || isUnlock());
+
+      // price と sellerId は変更不可
+      function priceSellerUnchanged() {
+        return request.resource.data.price == resource.data.price
+            && request.resource.data.sellerId == resource.data.sellerId;
+      }
+
+      // ロック: on_sale -> pending、買い手未設定 -> 自分の uid をセット
+      function isLock() {
+        return resource.data.status == 'on_sale'
+            && request.resource.data.status == 'pending'
+            && resource.data.get('buyerId', null) == null
+            && request.resource.data.buyerId == request.auth.uid;
+      }
+
+      // アンロック(ロールバック): pending -> on_sale、ロック保持者本人が buyerId をクリア
+      // buyerId は「未設定 -> 自分」「自分 -> クリア」の2操作のみ。他人の値へは変更不可。
+      // TODO(将来): アプリ強制終了等で unlock されない放置ロックは client では解消不能。
+      //   TTL or 定期 Cloud Function で pending の自動解放を別途実装する（今回スコープ外）。
+      function isUnlock() {
+        return resource.data.status == 'pending'
+            && request.resource.data.status == 'on_sale'
+            && resource.data.get('buyerId', null) == request.auth.uid
+            && request.resource.data.get('buyerId', null) == null;
+      }
+    }
+
+    // 取引成立チャット（C4）。取引が成立した二者（buyerId/sellerId）のみ読み書き可。
+    // roomId = transactionId。ルーム本体はサーバ(Admin SDK トリガー)限定で作成する。
+    match /chats/{roomId} {
+
+      // 作成はサーバ(Admin SDK)限定。クライアントからは作れない
+      // （= 取引成立した二者のルームのみが存在することを保証する）。
+      allow create: if false;
+
+      // ルーム本体の read は当事者のみ。update/delete は不可（不変）。
+      allow read: if isChatParty();
+      allow update, delete: if false;
+
+      // 当事者判定: ルーム doc の buyerId / sellerId のいずれかが自分。
+      function isChatParty() {
+        return request.auth != null
+            && (request.auth.uid == resource.data.buyerId
+             || request.auth.uid == resource.data.sellerId);
+      }
+
+      match /messages/{messageId} {
+
+        // read は当事者のみ。
+        allow read: if isMessageParty();
+
+        // 送信: 当事者本人が、自分を senderId として、1〜1000文字の本文で作成。
+        allow create: if isMessageParty()
+                      && request.resource.data.senderId == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 1000;
+
+        // 送信後の改変・削除は不可。
+        allow update, delete: if false;
+
+        // 親ルーム doc を参照して当事者判定する。
+        function isMessageParty() {
+          return request.auth != null
+              && (request.auth.uid == get(/databases/$(database)/documents/chats/$(roomId)).data.buyerId
+               || request.auth.uid == get(/databases/$(database)/documents/chats/$(roomId)).data.sellerId);
+        }
+      }
+    }
+  }
+}

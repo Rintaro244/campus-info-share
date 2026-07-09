@@ -1,0 +1,14 @@
+{
+  "name": "firestore-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Firestore Security Rules のユニットテスト（items / C4 取引・決済）",
+  "scripts": {
+    "test": "jest",
+    "test:emulator": "firebase emulators:exec --only firestore --project demo-campus-info-share \"jest\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "jest": "^29.7.0"
+  }
+}

@@ -19,14 +19,10 @@ class GatewayIntegrationModule {
 
   Future<PaymentIntentResult> createPaymentIntent({
     required String listingId,
-    required int amount,
-    required String buyerId,
   }) async {
     try {
       final result = await _paymentGateway.createPaymentIntent(
         listingId: listingId,
-        amount: amount,
-        buyerUid: buyerId,
       );
       return result;
     } on C4Exception {
