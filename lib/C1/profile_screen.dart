@@ -185,10 +185,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 final postType = post['type'];
                                                 final imageUrl = post['imageUrl'];
 
+                                                // market のみ削除結果を判定する（Rules で拒否された
+                                                // 場合に「削除しました」と偽表示しないための最小修正）。
+                                                bool deleteOk = true;
                                                 if (postType == 'circle') {
                                                   await CircleManager().deleteCircle(postId, imageUrl);
                                                 } else if (postType == 'market') {
-                                                  await MarketManager().deleteProduct(postId, imageUrl);
+                                                  deleteOk = await MarketManager().deleteProduct(postId, imageUrl);
                                                 } else if (postType == 'pastexam'){
                                                   await PastExamRepository().deletePastExam(postId, imageUrl);
                                                 }
@@ -200,7 +203,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 if (context.mounted) {
                                                   Navigator.of(context).pop();
                                                   ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(content: Text('「${post['title']}」を削除しました')),
+                                                    SnackBar(content: Text(deleteOk
+                                                        ? '「${post['title']}」を削除しました'
+                                                        : '「${post['title']}」の削除に失敗しました')),
                                                   );
                                                   _fetchUserData(); // 💡 削除後にリストを最新状態にする
                                                 }
