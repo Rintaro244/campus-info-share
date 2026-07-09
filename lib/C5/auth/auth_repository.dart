@@ -39,25 +39,6 @@ class AuthRepository {
       if(user == null){
         throw AccountCreationFailedException();//アカウント作成失敗
       }
-
-      /* 
-      //ユーザデータをFirestoreに保存する処理
-      //mainにマージ後に実装する
-      //多分UserProfile型のユーザデータをUserManagerクラス内で作成してFirebaseに保存する手順でいけるはず
-      //ここではなくcheckEmailVerificationで認証完了時に保存という手順にしたい
-      try {
-        final intialProfile = UserProfile(
-          uid: user.uid,
-          userName: 'USERNAME',
-          createAt: DateTime.now(),
-        );
-
-        await UserManager().createNewUser(initialProfile);
-      } catch (e) {
-        //Firestoreにユーザデータを保存できなかった場合、ユーザ仮登録を削除しエラーを投げる
-        await user.delete();
-        throw AccountSaveFailureException();
-      }*/
       
       try {
         //確認メール送信処理
@@ -74,6 +55,31 @@ class AuthRepository {
         throw NetworkException();//ネットワークエラー
       }
       throw  Exception('不明なエラー: ${e.code}');
+    }
+  }
+
+  //確認メールを再送信する
+  Future<void> requestResendVerificationEmail() async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      
+      // セッション（ユーザー状態）が切れている場合は例外を投げる
+      if (user == null) {
+        throw InvalidUserSessionException();
+      }
+
+      // FirebaseのAPIを使ってメールを再送信
+      await user.sendEmailVerification();
+      print('Firebase: 確認メールを再送信しました');
+      
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'too-many-requests') {
+        // 短時間に送りすぎた場合のFirebase側の制限
+        throw TooManyRequestsException();
+      } else if (e.code == 'network-request-failed') {
+        throw NetworkException();
+      }
+      throw Exception('不明なエラー: ${e.code}');
     }
   }
 

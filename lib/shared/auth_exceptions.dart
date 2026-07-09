@@ -34,3 +34,5 @@ class MfaSetupRequiredException implements Exception {}
 //class WeakPasswordException implements Exception {} //フロントエンド部分で処理するので不要
 //アカウントデータ保存エラー
 class AccountSaveFailureException implements Exception {}
+//メール再送信をたくさん送っちゃったときのエラー(そんなことおこらないようにフロントエンドで対応してるけどね一応だよ一応)
+class TooManyRequestsException implements Exception {}

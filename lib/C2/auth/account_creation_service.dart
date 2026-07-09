@@ -46,11 +46,29 @@ class AccountCreationService{
       //final uid = _authRepository.currentUid;
       //final email = _authRepository.getCurrentUid;
 
-      //アカウントをデータベースに登録
+      //認証完了でアカウントをデータベースに登録
+      //ここに実装
+      //
 
     } on InvalidUserSessionException {
       rethrow;
     } on EmailNotVerifiedException {
+      rethrow;
+    } on NetworkException {
+      rethrow;
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  //確認メールの再送信をRepositoryに依頼する
+  Future<void> resendVerificationEmail() async {
+    try {
+      // Repositoryの再送処理を呼び出す
+      await _authRepository.requestResendVerificationEmail();
+    } on InvalidUserSessionException {
+      rethrow;
+    } on TooManyRequestsException {
       rethrow;
     } on NetworkException {
       rethrow;

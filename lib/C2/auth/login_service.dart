@@ -14,6 +14,8 @@ class LoginService{
     try {
       //パスワード認証依頼
       await _authRepository.requestSignInWithPassword(emailAddress, password);
+      //メール認証が完了しているか確認
+      await _authRepository.checkEmailVerification();
 
       //初回認証の場合、MFA検証の例外が発生しないため、以下の処理に入る。
       final isEnrolled = await _authRepository.checkIsMfaEnrolled();
@@ -29,6 +31,10 @@ class LoginService{
       //MFA初期設定が必要
       rethrow;
     } on InvalidCredentialException {
+      rethrow;
+    } on InvalidUserSessionException {
+      rethrow;
+    } on EmailNotVerifiedException {
       rethrow;
     } on NetworkException {
       rethrow;

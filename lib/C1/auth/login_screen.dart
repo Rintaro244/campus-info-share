@@ -89,6 +89,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (!context.mounted) return;
                   //エラー表示が順番待ちにならないように前のものを消す
                   ScaffoldMessenger.of(context).clearSnackBars();
+                  if(e.toString().contains('EmailNotVerifiedException') || e.toString().contains('メール認証')) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('メール認証が完了していません。確認画面へ移動します')),
+                    );
+                    // 認証画面へ飛ばす！（戻るボタンでログイン画面に戻れるよう pushNamed がおすすめ）
+                    Navigator.pushNamed(context, '/email-verification');
+                    return;
+                  }
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
                   );

@@ -44,6 +44,8 @@ class AuthenticationController {
     } on MfaSetupRequiredException {
       //MFA初期設定へ遷移
       return 3;
+    } on EmailNotVerifiedException {
+      rethrow;
     } on InvalidCredentialException {
       throw Exception('メールアドレスまたはパスワードが間違っています');
     } on NetworkException {
@@ -57,7 +59,7 @@ class AuthenticationController {
   Future<void> submitOtp(String otpCode) async {
     final otpRegex = RegExp(r'^\d{6}$');
     if (!otpRegex.hasMatch(otpCode)) {
-      throw Exception('6桁の認証コード(数字)を正しく入力してください。');
+      throw Exception('6桁の認証コード(数字)を正しく入力してください');
     }
 
 
@@ -97,7 +99,27 @@ class AuthenticationController {
     } on InvalidDomainException {
       throw Exception('芝浦工業大学のメールアドレス (@shibaura-it.ac.jp または @sic.shibaura-it.ac.jp) を使用してください');
     } on EmailAlreadyInUseException {
-      throw Exception('このメールアドレスは既に登録されています');
+      try {
+        //未認証だけどアカウント作成されてるかどうかを確かめる
+        await _loginService.processLogin(mailAddress, password);
+        //未認証でない場合
+        throw Exception('このメールアドレスはすでに登録が完了しています。ログイン画面からログインしてください');
+      } on EmailNotVerifiedException {
+        //未認証の場合
+        rethrow;
+      } on MultiFactorAuthRequiredException {
+        throw Exception('メール認証はすでに完了しています。ログイン画面からログインしてMFA設定を行ってください');
+      } on MfaSetupRequiredException {
+        throw Exception('メール認証はすでに完了しています。ログイン画面からログインしてMFA設定を行ってください');
+      } on InvalidCredentialException {
+        throw Exception('このメールアドレスは既に使用されています');
+      } on InvalidUserSessionException {
+        throw Exception('セッションが無効になりました');
+      } on NetworkException {
+        throw Exception('ネットワークエラーが発生しました');
+      } catch (e) {
+        throw Exception(e.toString());
+      }
     } on MailSendFailureException {
       throw Exception('確認メールの送信に失敗しました');
     } on NetworkException {
@@ -117,9 +139,24 @@ class AuthenticationController {
     } on NetworkException {
       return false; // まだ認証されていないので待機
     } on InvalidUserSessionException {
-      throw Exception('セッションが無効になりました');; //セッション無効時は終了させる
+      throw Exception('セッションが無効になりました'); //セッション無効時は終了させる
     } catch (e) {
-      throw Exception(e.toString());; // その他のエラー時は終了させる
+      throw Exception(e.toString()); // その他のエラー時は終了させる
+    }
+  }
+
+  Future<void> resendEmail() async {
+    try {
+      // Service層へ処理を委譲
+      await _accountCreationService.resendVerificationEmail();
+    } on TooManyRequestsException {
+      throw Exception('メール送信回数が上限に達しました。しばらく待ってから再度お試しください');
+    } on InvalidUserSessionException {
+      throw Exception('セッションが切れました。もう一度最初から登録し直してください');
+    } on NetworkException {
+      throw Exception('ネットワークエラーが発生しました。時間を置いて再度お試しください');
+    } catch (e) {
+      throw Exception(e.toString());
     }
   }
 
@@ -143,7 +180,7 @@ class AuthenticationController {
     } on InvalidUserSessionException {
       throw Exception('セッションが無効です。もう一度ログインしなおしてください');
     } on TotpSetupFailureException {
-      throw Exception('MFAの初期化に失敗しました。もう一度お試しください。');
+      throw Exception('MFAの初期化に失敗しました。もう一度お試しください');
     } on NetworkException {
       throw Exception('ネットワークエラーが発生しました');
     } catch (e) {
@@ -156,7 +193,7 @@ class AuthenticationController {
   Future<void> completeMfaEnrollment(String otpCode) async {
     final otpRegex = RegExp(r'^\d{6}$');
     if (!otpRegex.hasMatch(otpCode)) {
-      throw Exception('6桁の認証コード(数字)を正しく入力してください。');
+      throw Exception('6桁の認証コード(数字)を正しく入力してください');
     }
     
     try {

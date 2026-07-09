@@ -116,8 +116,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   // 登録処理が成功したらメール確認画面へ（現在の画面は破棄）
                   Navigator.pushReplacementNamed(context, '/email-verification');
                 } catch (e) {
+                  if (!context.mounted) return;
                   //エラー表示が順番待ちにならないように前のものを消す
                   ScaffoldMessenger.of(context).clearSnackBars();
+                  //メアドが既に使用されていてかつ未認証
+                  if(e.toString().contains('EmailNotVerifiedException')) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('登録途中のアカウントが見つかりました。認証画面へ移動します。')),
+                    );
+                    Navigator.pushReplacementNamed(context, '/email-verification');
+                    return;
+                  }
+
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
                   );
