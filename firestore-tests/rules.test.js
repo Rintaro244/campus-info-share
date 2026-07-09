@@ -223,4 +223,163 @@ describe('items Security Rules', () => {
       }),
     );
   });
+
+  // --- delete（出品取消）のルール ---
+  // 出品者本人 かつ on_sale のみ許可。pending/sold は購入者保護のため不可。
+  const SELLER = 'seller1'; // onSaleItem/pendingItem の sellerId
+  /** 売却済みの item（buyer1 が購入者）。 */
+  const soldItem = {
+    price: 1000,
+    status: 'sold',
+    sellerId: SELLER,
+    buyerId: BUYER,
+  };
+
+  test('⑱ 出品者本人による on_sale の delete は許可', async () => {
+    await seed(LISTING, onSaleItem);
+    await assertSucceeds(authed(SELLER).collection('items').doc(LISTING).delete());
+  });
+
+  test('⑲ 他人による on_sale の delete は拒否', async () => {
+    await seed(LISTING, onSaleItem);
+    await assertFails(authed(BUYER).collection('items').doc(LISTING).delete());
+  });
+
+  test('⑳ 出品者本人でも pending の delete は拒否（購入者保護）', async () => {
+    await seed(LISTING, pendingItem);
+    await assertFails(authed(SELLER).collection('items').doc(LISTING).delete());
+  });
+
+  test('㉑ 出品者本人でも sold の delete は拒否（購入者保護）', async () => {
+    await seed(LISTING, soldItem);
+    await assertFails(authed(SELLER).collection('items').doc(LISTING).delete());
+  });
+
+  test('㉒ 未ログインの delete は拒否', async () => {
+    await seed(LISTING, onSaleItem);
+    await assertFails(unauthed().collection('items').doc(LISTING).delete());
+  });
+});
+
+// ── 取引成立チャット（chats / messages）の Security Rules ─────────────────
+// 当事者 = buyerId(BUYER) と sellerId(SELLER)。第三者 = OTHER。
+const SELLER = 'seller1';
+const ROOM = 'free_item1'; // roomId = transactionId
+
+/** ルール無効化で chats/{ROOM} を seed する。 */
+async function seedChatRoom(overrides = {}) {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await ctx
+      .firestore()
+      .collection('chats')
+      .doc(ROOM)
+      .set({
+        buyerId: BUYER,
+        sellerId: SELLER,
+        listingId: 'item1',
+        transactionId: ROOM,
+        ...overrides,
+      });
+  });
+}
+
+/** ルール無効化で chats/{ROOM}/messages/{id} を seed する。 */
+async function seedMessage(id, data) {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await ctx
+      .firestore()
+      .collection('chats')
+      .doc(ROOM)
+      .collection('messages')
+      .doc(id)
+      .set(data);
+  });
+}
+
+const roomRef = (fs) => fs.collection('chats').doc(ROOM);
+const msgsRef = (fs) => roomRef(fs).collection('messages');
+
+describe('chats Security Rules', () => {
+  test('① buyer はルームを read できる', async () => {
+    await seedChatRoom();
+    await assertSucceeds(roomRef(authed(BUYER)).get());
+  });
+
+  test('② seller はルームを read できる', async () => {
+    await seedChatRoom();
+    await assertSucceeds(roomRef(authed(SELLER)).get());
+  });
+
+  test('③ 第三者のルーム read は拒否', async () => {
+    await seedChatRoom();
+    await assertFails(roomRef(authed(OTHER)).get());
+  });
+
+  test('④ 未ログインのルーム read は拒否', async () => {
+    await seedChatRoom();
+    await assertFails(roomRef(unauthed()).get());
+  });
+
+  test('⑤ クライアントからのルーム create は拒否（サーバ限定）', async () => {
+    await assertFails(
+      authed(BUYER).collection('chats').doc('free_item2').set({
+        buyerId: BUYER,
+        sellerId: SELLER,
+        listingId: 'item2',
+        transactionId: 'free_item2',
+      }),
+    );
+  });
+
+  test('⑥ 当事者(seller)によるルーム update は拒否（不変）', async () => {
+    await seedChatRoom();
+    await assertFails(roomRef(authed(SELLER)).update({ listingId: 'hacked' }));
+  });
+
+  test('⑦ buyer が senderId=自分でメッセージ送信は許可', async () => {
+    await seedChatRoom();
+    await assertSucceeds(msgsRef(authed(BUYER)).add({ senderId: BUYER, text: 'こんにちは' }));
+  });
+
+  test('⑧ seller が senderId=自分でメッセージ送信は許可', async () => {
+    await seedChatRoom();
+    await assertSucceeds(msgsRef(authed(SELLER)).add({ senderId: SELLER, text: 'よろしく' }));
+  });
+
+  test('⑨ senderId を他人に偽装した送信は拒否（なりすまし）', async () => {
+    await seedChatRoom();
+    await assertFails(msgsRef(authed(BUYER)).add({ senderId: SELLER, text: 'なりすまし' }));
+  });
+
+  test('⑩ 第三者のメッセージ送信は拒否', async () => {
+    await seedChatRoom();
+    await assertFails(msgsRef(authed(OTHER)).add({ senderId: OTHER, text: '部外者' }));
+  });
+
+  test('⑪ 空文字 / 1000文字超の本文は拒否', async () => {
+    await seedChatRoom();
+    await assertFails(msgsRef(authed(BUYER)).add({ senderId: BUYER, text: '' }));
+    await assertFails(
+      msgsRef(authed(BUYER)).add({ senderId: BUYER, text: 'あ'.repeat(1001) }),
+    );
+  });
+
+  test('⑫ メッセージの update / delete は拒否', async () => {
+    await seedChatRoom();
+    await seedMessage('m1', { senderId: BUYER, text: '既存メッセージ' });
+    await assertFails(msgsRef(authed(BUYER)).doc('m1').update({ text: '改ざん' }));
+    await assertFails(msgsRef(authed(BUYER)).doc('m1').delete());
+  });
+
+  test('⑬ 第三者のメッセージ read は拒否', async () => {
+    await seedChatRoom();
+    await seedMessage('m1', { senderId: BUYER, text: '秘密' });
+    await assertFails(msgsRef(authed(OTHER)).doc('m1').get());
+  });
+
+  test('⑭ 当事者(buyer)のメッセージ read は許可', async () => {
+    await seedChatRoom();
+    await seedMessage('m1', { senderId: SELLER, text: '受け渡し場所は…' });
+    await assertSucceeds(msgsRef(authed(BUYER)).doc('m1').get());
+  });
 });
