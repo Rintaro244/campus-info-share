@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'past_exam_screen.dart';
+//import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/spot/spot_search_screen.dart';  // import追加
 import 'lecture/lecture_list_screen.dart'; //import追加
 import 'past/past_exam_screen.dart';
-import 'features/spot/spot_search_screen.dart'; 
+//import 'features/spot/spot_search_screen.dart'; 
 import 'C1/circle_search_screen.dart'; 
 import 'C1/market_search_screen.dart'; 
 import 'C1/profile_screen.dart';  
