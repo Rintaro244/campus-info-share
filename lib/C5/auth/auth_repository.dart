@@ -44,6 +44,7 @@ class AuthRepository {
       //ユーザデータをFirestoreに保存する処理
       //mainにマージ後に実装する
       //多分UserProfile型のユーザデータをUserManagerクラス内で作成してFirebaseに保存する手順でいけるはず
+      //ここではなくcheckEmailVerificationで認証完了時に保存という手順にしたい
       try {
         final intialProfile = UserProfile(
           uid: user.uid,
