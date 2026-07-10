@@ -124,6 +124,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('登録途中のアカウントが見つかりました。認証画面へ移動します。')),
                     );
+
+                    try {
+                      await _controller.resendEmail();
+                    } catch (_) {
+                      //アプリ落ち対策
+                    }
+
                     Navigator.pushReplacementNamed(context, '/email-verification');
                     return;
                   }

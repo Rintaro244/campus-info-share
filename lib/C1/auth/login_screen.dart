@@ -93,6 +93,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('メール認証が完了していません。確認画面へ移動します')),
                     );
+
+                    try {
+                      await _controller.resendEmail();
+                    } catch (_) {
+                      //アプリ落ち対策
+                    }
+                    if (!context.mounted) return;
                     // 認証画面へ飛ばす！（戻るボタンでログイン画面に戻れるよう pushNamed がおすすめ）
                     Navigator.pushNamed(context, '/email-verification');
                     return;

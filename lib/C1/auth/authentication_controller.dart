@@ -108,7 +108,7 @@ class AuthenticationController {
         //未認証の場合
         rethrow;
       } on MultiFactorAuthRequiredException {
-        throw Exception('メール認証はすでに完了しています。ログイン画面からログインしてMFA設定を行ってください');
+        throw Exception('メール認証はすでに完了しています。ログイン画面からログインしてください');
       } on MfaSetupRequiredException {
         throw Exception('メール認証はすでに完了しています。ログイン画面からログインしてMFA設定を行ってください');
       } on InvalidCredentialException {
