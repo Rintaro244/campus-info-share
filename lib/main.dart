@@ -4,6 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'firebase_options.dart';
 import 'mainscreen.dart';
+import 'C1/auth/login_screen.dart';
+import 'C1/auth/registration_screen.dart';
+import 'C1/auth/email_verification_screen.dart';
+import 'C1/auth/registration_success_screen.dart';
+import 'C1/auth/mfa_setup_screen.dart';
+import 'C1/auth/otp_screen.dart';
 import 'payment/payment_integration.dart';
 
 // Stripe publishable key（pk_test_...）は公開前提の鍵だが、リポジトリには直書きせず
@@ -49,7 +55,19 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const MainScreen(),
+      //home: const MainScreen(),
+      initialRoute: '/login',
+
+      routes: {
+        '/login': (context) => LoginScreen(),
+        '/register': (context) => RegistrationScreen(),
+        '/email-verification': (context) => const EmailVerificationScreen(),
+        '/registration-success': (context) => const RegistrationSuccessScreen(),
+        '/mfa-setup': (context) => const MfaSetupScreen(),
+        '/otp': (context) => OtpScreen(),
+        '/home': (context) => const MainScreen(),
+      },
+
     );
   }
 }

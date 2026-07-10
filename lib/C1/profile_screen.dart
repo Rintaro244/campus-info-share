@@ -6,6 +6,8 @@ import 'profile_edit_screen.dart';
 import '../C3/circle_manager.dart'; 
 import '../C3/market_manager.dart'; 
 import '../C3/lecture_manager.dart';
+import 'package:student_information_1/C1/auth/authentication_controller.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -30,7 +32,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchUserData() async {
     setState(() { _isLoading = true; });
 
-    const targetUserId = 'dummy_user_123'; 
+    //const targetUserId = 'dummy_user_123'; 
+
+    //現在ログイン中のUIDを取得
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      // 万が一未ログインの場合は処理を中断
+      setState(() { _isLoading = false; });
+      return;
+    }
+    final targetUserId = currentUser.uid;
 
     // 💡 ユーザー名を取得
     final fetchedName = await UserManager().fetchUserName(targetUserId);
@@ -59,6 +70,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isLoading = false;
     });
   }
+
+  // 🚪 ログアウト確認ダイアログの表示と処理
+  void _showLogoutConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'ログアウト確認',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text('本当にログアウトしますか？'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // ダイアログを閉じる（キャンセル）
+              },
+              child: const Text('キャンセル', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () async {
+                // 先にダイアログを閉じる
+                Navigator.of(dialogContext).pop();
+
+                try {
+                  // 💡 AuthenticationControllerのインスタンスを作ってsubmitLogoutを実行
+                  final authController = AuthenticationController();
+                  await authController.submitLogout();
+
+                  // ログアウトが成功し、画面がまだ存在していればログイン画面へリダイレクト
+                  if (context.mounted) {
+                    // main.dartで定義されている '/login' ルートへ、履歴をクリアしながら遷移
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/login',
+                      (Route<dynamic> route) => false,
+                    );
+                  }
+                } catch (e) {
+                  // 万が一ログアウト処理でエラーが発生した場合はスナックバーで通知
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString().replaceAll('Exception: ', '')),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text(
+                'はい',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -229,7 +302,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () { /* ログアウト処理は省略 */ },
+        //確認ダイアログ表示+ログアウト処理呼び出し
+        onPressed: () => _showLogoutConfirmationDialog(context),
         backgroundColor: Colors.red[400],
         elevation: 4,
         icon: const Icon(Icons.logout, color: Colors.white),
