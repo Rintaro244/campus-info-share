@@ -6,6 +6,7 @@ import 'profile_edit_screen.dart';
 import '../C3/circle_manager.dart'; 
 import '../C3/market_manager.dart'; 
 import '../C3/lecture_manager.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -30,7 +31,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchUserData() async {
     setState(() { _isLoading = true; });
 
-    const targetUserId = 'dummy_user_123'; 
+    //const targetUserId = 'dummy_user_123'; 
+
+    //現在ログイン中のUIDを取得
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      // 万が一未ログインの場合は処理を中断
+      setState(() { _isLoading = false; });
+      return;
+    }
+    final targetUserId = currentUser.uid;
 
     // 💡 ユーザー名を取得
     final fetchedName = await UserManager().fetchUserName(targetUserId);
