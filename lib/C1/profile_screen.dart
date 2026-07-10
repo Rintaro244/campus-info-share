@@ -4,6 +4,8 @@ import 'package:student_information_1/past/past_exam_repository.dart'; // 💡 �
 import 'profile_edit_screen.dart'; 
 import '../C3/circle_manager.dart'; 
 import '../C3/market_manager.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart'; // 💡 Firestoreを使う場合に必
+import '../lecture/lecture_detail_screen.dart'; // 💡 講義詳細画面を使う場合に必要
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -41,6 +43,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // 3. 過去問データの取得（ Streamから1回だけリストを取得 ）
       final pastExamRepository = PastExamRepository();
       final allExams = await pastExamRepository.getPastExamsStream().first; 
+
+      //4. 講義データの取得と変換
+      final lectureSnapshot = await FirebaseFirestore.instance
+      .collection('lecture')
+      .where('uid', isEqualTo: targetUserId)
+      .get();
+
+
       // 自分のIDのデータだけに絞り込む
       final myExams = allExams.where((exam) => exam.userId == targetUserId).toList();
 
@@ -80,6 +90,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'date': '${exam.createdAt.year}/${exam.createdAt.month}/${exam.createdAt.day}',
           'type': 'past_exam', // 判別用
           'fileUrls': exam.fileUrls, // 削除時に使う画像のURLリスト
+        });
+      }
+
+      for (var doc in lectureSnapshot.docs) {
+        final data = doc.data();
+        combinedPosts.add({
+          'id': doc.id, // FirestoreのドキュメントID
+          'title': data['lecture_name'] ?? '講義の口コミ',
+          'category': '講義情報',
+          'date': '投稿済み', // 📝 必要に応じて createdAt をフォーマットしてもOK
+          'type': 'lecture', // 判別用
         });
       }
 
@@ -226,6 +247,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   // 💡 過去問リポジトリの削除処理を呼び出す
                                                   final imageUrls = List<String>.from(post['fileUrls'] ?? []);
                                                   await PastExamRepository().deletePastExam(postId, imageUrls);
+                                                } else if (postType == 'lecture') {
+                                                  // 💡 講義情報の削除処理を呼び出す
+                                                  await FirebaseFirestore.instance.collection('lecture').doc(postId).delete();
                                                 }
 
                                                 if (context.mounted) {
