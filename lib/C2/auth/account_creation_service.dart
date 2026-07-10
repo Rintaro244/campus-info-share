@@ -46,10 +46,6 @@ class AccountCreationService{
       //final uid = _authRepository.currentUid;
       //final email = _authRepository.getCurrentUid;
 
-      //認証完了でアカウントをデータベースに登録
-      //ここに実装
-      //
-
     } on InvalidUserSessionException {
       rethrow;
     } on EmailNotVerifiedException {
