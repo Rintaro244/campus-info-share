@@ -7,7 +7,7 @@ import 'past_exam_add_screen.dart';
 import 'past_exam_detail_screen.dart';
 
 class PastExamListScreen extends ConsumerStatefulWidget {
-  const PastExamListScreen({Key? key}) : super(key: key);
+  const PastExamListScreen({super.key});
 
   @override
   ConsumerState<PastExamListScreen> createState() => _PastExamListScreenState();
@@ -24,7 +24,7 @@ class _PastExamListScreenState extends ConsumerState<PastExamListScreen> {
   }
 
   void onExamTap(PastExam exam) {
-    // 詳細画面へ遷移する
+    // 💡 詳細画面へ遷移するように修正済み
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => PastExamDetailScreen(exam: exam),
@@ -85,7 +85,7 @@ class _PastExamListScreenState extends ConsumerState<PastExamListScreen> {
                   const Text('年度フィルター', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: controller.selectedYear,
+                    initialValue: controller.selectedYear,
                     items: controller.yearOptions.map((year) {
                       return DropdownMenuItem(
                         value: year,

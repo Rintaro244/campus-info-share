@@ -81,6 +81,7 @@ class FakeNavigator implements PaymentNavigator {
     required String clientSecret,
     required String paymentIntentId,
     required int amount,
+    required String listingId,
   }) {
     cardEntryShown = true;
   }

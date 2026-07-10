@@ -24,10 +24,14 @@ class CardEntryArgs {
   final String paymentIntentId;
   final int amount;
 
+  /// 決済対象 item のドキュメント ID。決済成功後の完了画面遷移に使う。
+  final String listingId;
+
   const CardEntryArgs({
     required this.clientSecret,
     required this.paymentIntentId,
     required this.amount,
+    required this.listingId,
   });
 }
 
@@ -60,6 +64,7 @@ class FlutterPaymentNavigator implements PaymentNavigator {
     required String clientSecret,
     required String paymentIntentId,
     required int amount,
+    required String listingId,
   }) {
     _nav?.pushNamed(
       AppRoutes.cardEntry,
@@ -67,6 +72,7 @@ class FlutterPaymentNavigator implements PaymentNavigator {
         clientSecret: clientSecret,
         paymentIntentId: paymentIntentId,
         amount: amount,
+        listingId: listingId,
       ),
     );
   }

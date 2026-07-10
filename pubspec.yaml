@@ -60,6 +60,10 @@ dependencies:
 
   flutter_riverpod: ^2.6.1
 
+  # Stripe 決済（有償フローのカード決済。Web は flutter_stripe_web が Stripe.js を橋渡し）
+  flutter_stripe: ^13.0.0
+  flutter_stripe_web: ^8.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

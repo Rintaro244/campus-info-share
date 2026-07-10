@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'past_exam_controller.dart';
 
 class PastExamAddScreen extends ConsumerStatefulWidget {
-  const PastExamAddScreen({Key? key}) : super(key: key);
+  const PastExamAddScreen({super.key});
 
   @override
   ConsumerState<PastExamAddScreen> createState() => _PastExamAddScreenState();
