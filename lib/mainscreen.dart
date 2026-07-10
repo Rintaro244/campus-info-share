@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-//import 'past_exam_screen.dart';
-import 'features/spot/spot_search_screen.dart';  // import追加
-import 'lecture/lecture_list_screen.dart'; //import追加
+import 'features/spot/spot_search_screen.dart';
+import 'lecture/lecture_list_screen.dart';
 import 'past/past_exam_screen.dart';
-import 'features/spot/spot_search_screen.dart'; 
-import 'C1/circle_search_screen.dart'; 
+import 'C1/circle_search_screen.dart';
 import 'C1/market_search_screen.dart'; 
 import 'C1/profile_screen.dart';  
 

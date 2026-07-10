@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'firebase_options.dart';
 import 'mainscreen.dart';
 import 'C1/auth/login_screen.dart';
@@ -11,6 +12,13 @@ import 'C1/auth/mfa_setup_screen.dart';
 import 'C1/auth/otp_screen.dart';
 import 'payment/payment_integration.dart';
 
+// Stripe publishable key（pk_test_...）は公開前提の鍵だが、リポジトリには直書きせず
+// 実行時に --dart-define で渡す:
+//   flutter run -d chrome --dart-define=STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+// 未指定でもアプリは起動する（決済フローに入ったときだけカード決済が使えない）。
+const String _stripePublishableKey =
+    String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
+
 // firebase_options.dart は共有Firebase(campus-info-share)用を
 // リポジトリ管理し、班全員で同一のものを使用する。
 void main() async {
@@ -18,6 +26,12 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // 空キーガード: キー未指定（スポット担当が --dart-define 無しで起動する等）でも
+  // クラッシュせず起動する。キーがあるときだけ Stripe を初期化する。
+  if (_stripePublishableKey.isNotEmpty) {
+    Stripe.publishableKey = _stripePublishableKey;
+    await Stripe.instance.applySettings();
+  }
   runApp(
     const ProviderScope(
       child: MyApp(),

@@ -13,6 +13,7 @@ abstract interface class PaymentNavigator {
     required String clientSecret,
     required String paymentIntentId,
     required int amount,
+    required String listingId,
   });
   /// 購入（譲渡）完了画面へ遷移する。
   /// [transactionId] は完了画面の「出品者と連絡を取る」導線（= chats/{roomId}）に使う。
@@ -99,6 +100,7 @@ class PurchaseFlowCoordinator {
       clientSecret: intent.clientSecret,
       paymentIntentId: intent.paymentIntentId,
       amount: lock.amount,
+      listingId: listingId,
     );
 
     return PurchaseSession(

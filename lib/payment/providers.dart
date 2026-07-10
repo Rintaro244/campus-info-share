@@ -13,6 +13,8 @@ import 'package:student_information_1/C3/market_manager.dart';
 import 'package:student_information_1/payment/m2_purchase_control.dart';
 import 'package:student_information_1/payment/m3_gateway_integration.dart';
 import 'package:student_information_1/payment/services/c5_interfaces.dart';
+import 'package:student_information_1/payment/services/card_payment_client.dart';
+import 'package:student_information_1/payment/services/stripe_card_payment_client.dart';
 import 'package:student_information_1/payment/services/callable_free_transfer_client.dart';
 import 'package:student_information_1/payment/services/callable_payment_gateway_client.dart';
 import 'package:student_information_1/payment/services/firestore_item_repository.dart';
@@ -49,6 +51,12 @@ final itemRepositoryProvider = Provider<ItemRepository>(
 
 final paymentGatewayClientProvider = Provider<PaymentGatewayClient>(
   (ref) => CallablePaymentGatewayClient(),
+);
+
+/// カード決済クライアント（clientSecret 受領後の決済実行）。
+/// テストでは Fake に差し替える。実装は flutter_stripe を閉じ込めた具象。
+final cardPaymentClientProvider = Provider<CardPaymentClient>(
+  (ref) => const StripeCardPaymentClient(),
 );
 
 final freeTransferClientProvider = Provider<FreeTransferClient>(
