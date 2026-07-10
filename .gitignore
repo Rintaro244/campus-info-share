@@ -57,6 +57,10 @@ local.properties
 .env.*
 !.env.example
 
+# Firebase Functions local secrets (Stripe sk_ / whsec_) — 絶対にコミットしない
+functions/.secret.local
+functions/.secret*.local
+
 # Secret / key files
 **/secrets.dart
 **/api_keys.dart

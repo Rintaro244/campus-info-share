@@ -223,6 +223,42 @@ describe('items Security Rules', () => {
       }),
     );
   });
+
+  // --- delete（出品取消）のルール ---
+  // 出品者本人 かつ on_sale のみ許可。pending/sold は購入者保護のため不可。
+  const SELLER = 'seller1'; // onSaleItem/pendingItem の sellerId
+  /** 売却済みの item（buyer1 が購入者）。 */
+  const soldItem = {
+    price: 1000,
+    status: 'sold',
+    sellerId: SELLER,
+    buyerId: BUYER,
+  };
+
+  test('⑱ 出品者本人による on_sale の delete は許可', async () => {
+    await seed(LISTING, onSaleItem);
+    await assertSucceeds(authed(SELLER).collection('items').doc(LISTING).delete());
+  });
+
+  test('⑲ 他人による on_sale の delete は拒否', async () => {
+    await seed(LISTING, onSaleItem);
+    await assertFails(authed(BUYER).collection('items').doc(LISTING).delete());
+  });
+
+  test('⑳ 出品者本人でも pending の delete は拒否（購入者保護）', async () => {
+    await seed(LISTING, pendingItem);
+    await assertFails(authed(SELLER).collection('items').doc(LISTING).delete());
+  });
+
+  test('㉑ 出品者本人でも sold の delete は拒否（購入者保護）', async () => {
+    await seed(LISTING, soldItem);
+    await assertFails(authed(SELLER).collection('items').doc(LISTING).delete());
+  });
+
+  test('㉒ 未ログインの delete は拒否', async () => {
+    await seed(LISTING, onSaleItem);
+    await assertFails(unauthed().collection('items').doc(LISTING).delete());
+  });
 });
 
 // ── 取引成立チャット（chats / messages）の Security Rules ─────────────────

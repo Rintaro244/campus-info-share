@@ -25,8 +25,11 @@ service cloud.firestore {
                     && request.resource.data.title.size() > 0
                     && request.resource.data.title.size() <= 40;
 
-      // 削除はクライアント不可（出品取消は別タスク・現時点スコープ外）
-      allow delete: if false;
+      // 出品取消(delete): 出品者本人かつ販売中(on_sale)のみ。
+      // 手続き中(pending)・売却済(sold)は購入者保護のため削除不可。
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.sellerId
+                    && resource.data.status == 'on_sale';
 
       // update: ログイン済み + price/sellerId 不変 + (ロック or アンロック) のみ
       allow update: if request.auth != null

@@ -9,9 +9,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:student_information_1/C3/market_manager.dart';
 import 'package:student_information_1/payment/m2_purchase_control.dart';
 import 'package:student_information_1/payment/m3_gateway_integration.dart';
 import 'package:student_information_1/payment/services/c5_interfaces.dart';
+import 'package:student_information_1/payment/services/card_payment_client.dart';
+import 'package:student_information_1/payment/services/stripe_card_payment_client.dart';
 import 'package:student_information_1/payment/services/callable_free_transfer_client.dart';
 import 'package:student_information_1/payment/services/callable_payment_gateway_client.dart';
 import 'package:student_information_1/payment/services/firestore_item_repository.dart';
@@ -38,6 +41,9 @@ final itemCatalogRepositoryProvider = Provider<ItemCatalogRepository>(
   (ref) => ItemCatalogRepository(),
 );
 
+/// 出品取消などの教材書き込み操作（テストで Fake に差し替え可能にする）。
+final marketManagerProvider = Provider<MarketManager>((ref) => MarketManager());
+
 /// 取引用: 在庫ロック/解除（C5 ItemRepository 具象）。
 final itemRepositoryProvider = Provider<ItemRepository>(
   (ref) => FirestoreItemRepository(),
@@ -45,6 +51,12 @@ final itemRepositoryProvider = Provider<ItemRepository>(
 
 final paymentGatewayClientProvider = Provider<PaymentGatewayClient>(
   (ref) => CallablePaymentGatewayClient(),
+);
+
+/// カード決済クライアント（clientSecret 受領後の決済実行）。
+/// テストでは Fake に差し替える。実装は flutter_stripe を閉じ込めた具象。
+final cardPaymentClientProvider = Provider<CardPaymentClient>(
+  (ref) => const StripeCardPaymentClient(),
 );
 
 final freeTransferClientProvider = Provider<FreeTransferClient>(
