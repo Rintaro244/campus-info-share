@@ -20,6 +20,18 @@ class FakeAuthRepository implements AuthRepository {
     if (errorToThrow != null) throw errorToThrow!;
   }
 
+  // 💡 追加: メールの再送用のモック
+  @override
+  Future<void> requestResendVerificationEmail() async {
+    if (errorToThrow != null) throw errorToThrow!;
+  }
+
+  // 💡 追加: アカウント削除用のモック
+  @override
+  Future<void> deleteCurrentUser() async {
+    if (errorToThrow != null) throw errorToThrow!;
+  }
+
   // 今回のテストでは呼ばれないメソッド群
   @override
   Future<void> requestSignInWithPassword(String email, String password) => throw UnimplementedError();
@@ -33,105 +45,108 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> enrollTotpMfa(String otpCode) => throw UnimplementedError();
   @override
   Future<void> requestSignOut() => throw UnimplementedError();
-  @override
-  Future<void> deleteCurrentUser() async {
-    if (errorToThrow != null) throw errorToThrow!;
-  }
 }
 
-// =======================================================
-// 2. テスト本体
-// =======================================================
 void main() {
   late AccountCreationService accountService;
   late FakeAuthRepository fakeAuthRepository;
-
-  // ※注意：AccountCreationServiceの実装に合わせて、
-  // validateDomain() を通過する「正しい大学のメアド」に変更してください。
-  // ここでは仮に '@shibaura-it.ac.jp' としています。
-  const validEmail = 'test@shibaura-it.ac.jp';
-  const invalidEmail = 'test@gmail.com'; 
-  const validPassword = 'password123';
 
   setUp(() {
     fakeAuthRepository = FakeAuthRepository();
     accountService = AccountCreationService(authRepository: fakeAuthRepository);
   });
 
+  // =======================================================
+  // validateDomain (バリデーション) のテスト
+  // =======================================================
+  group('AccountCreationService - バリデーション単体テスト', () {
+    test('validateDomain: 正しい大学のドメインなら true を返すこと', () {
+      expect(accountService.validateDomain('student@shibaura-it.ac.jp'), isTrue);
+      expect(accountService.validateDomain('student@sic.shibaura-it.ac.jp'), isTrue);
+    });
+
+    test('validateDomain: 異なるドメインや無効な形式なら false を返すこと', () {
+      expect(accountService.validateDomain('test@gmail.com'), isFalse);
+      expect(accountService.validateDomain('test@yahoo.co.jp'), isFalse);
+      expect(accountService.validateDomain(''), isFalse); 
+      expect(accountService.validateDomain('shibaura-it.ac.jp'), isFalse); 
+    });
+  });
+
+  // =======================================================
+  // requestAccountCreation のテスト
+  // =======================================================
   group('AccountCreationService - requestAccountCreation のテスト', () {
-    
-    test('正常系: バリデーションOKで例外なく完了すること', () async {
+    const validEmail = 'test@shibaura-it.ac.jp';
+    const invalidEmail = 'test@gmail.com';
+    const password = 'password123';
+
+    test('正常系: ドメインが正しく、エラーがなければ完了すること', () async {
       fakeAuthRepository.errorToThrow = null;
       await expectLater(
-        accountService.requestAccountCreation(validEmail, validPassword, validPassword), 
-        completes
+        accountService.requestAccountCreation(validEmail, password, password),
+        completes,
       );
     });
 
-    test('異常系: ドメインが違う場合、InvalidDomainException で弾かれること', () async {
+    test('異常系: 無効なドメインの場合、InvalidDomainException を投げること', () async {
       expect(
-        () => accountService.requestAccountCreation(invalidEmail, validPassword, validPassword),
+        () => accountService.requestAccountCreation(invalidEmail, password, password),
         throwsA(isA<InvalidDomainException>()),
       );
     });
 
-    test('異常系: C5から EmailAlreadyInUseException が投げられた場合、そのまま投げること', () async {
-      fakeAuthRepository.errorToThrow = EmailAlreadyInUseException();
-      expect(
-        () => accountService.requestAccountCreation(validEmail, validPassword, validPassword),
-        throwsA(isA<EmailAlreadyInUseException>()),
-      );
-    });
-
-    test('異常系: C5から AccountCreationFailedException が投げられた場合、そのまま投げること', () async {
+    test('異常系: AccountCreationFailedException がそのまま伝播すること', () async {
       fakeAuthRepository.errorToThrow = AccountCreationFailedException();
       expect(
-        () => accountService.requestAccountCreation(validEmail, validPassword, validPassword),
+        () => accountService.requestAccountCreation(validEmail, password, password),
         throwsA(isA<AccountCreationFailedException>()),
       );
     });
 
-    test('異常系: C5から MailSendFailureException が投げられた場合、そのまま投げること', () async {
+    test('異常系: MailSendFailureException がそのまま伝播すること', () async {
       fakeAuthRepository.errorToThrow = MailSendFailureException();
       expect(
-        () => accountService.requestAccountCreation(validEmail, validPassword, validPassword),
+        () => accountService.requestAccountCreation(validEmail, password, password),
         throwsA(isA<MailSendFailureException>()),
       );
     });
 
-    test('異常系: 通信エラー時、NetworkException をそのまま投げること', () async {
+    test('異常系: EmailAlreadyInUseException がそのまま伝播すること', () async {
+      fakeAuthRepository.errorToThrow = EmailAlreadyInUseException();
+      expect(
+        () => accountService.requestAccountCreation(validEmail, password, password),
+        throwsA(isA<EmailAlreadyInUseException>()),
+      );
+    });
+
+    test('異常系: NetworkException がそのまま伝播すること', () async {
       fakeAuthRepository.errorToThrow = NetworkException();
       expect(
-        () => accountService.requestAccountCreation(validEmail, validPassword, validPassword),
+        () => accountService.requestAccountCreation(validEmail, password, password),
         throwsA(isA<NetworkException>()),
       );
     });
 
-    test('異常系: 予期せぬエラー時、「テストエラー」として Exception を投げること', () async {
-      fakeAuthRepository.errorToThrow = Exception('テストエラー');
+    test('異常系: 予期せぬエラーの場合、Exception でラップされること', () async {
+      fakeAuthRepository.errorToThrow = Exception('予期せぬエラー');
       expect(
-        () => accountService.requestAccountCreation(validEmail, validPassword, validPassword),
-        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('テストエラー'))),
+        () => accountService.requestAccountCreation(validEmail, password, password),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('予期せぬエラー'))),
       );
     });
   });
 
+  // =======================================================
+  // finalizeAccountRegistration のテスト
+  // =======================================================
   group('AccountCreationService - finalizeAccountRegistration のテスト', () {
-    
-    test('正常系: 認証済みの確認が例外なく完了すること', () async {
+    test('正常系: エラーなく完了すること', () async {
       fakeAuthRepository.errorToThrow = null;
       await expectLater(accountService.finalizeAccountRegistration(), completes);
     });
 
-    test('異常系: まだ認証されていない場合、EmailNotVerifiedException を投げること', () async {
-      fakeAuthRepository.errorToThrow = EmailNotVerifiedException();
-      expect(
-        () => accountService.finalizeAccountRegistration(),
-        throwsA(isA<EmailNotVerifiedException>()),
-      );
-    });
-
-    test('異常系: セッション切れの場合、InvalidUserSessionException を投げること', () async {
+    test('異常系: InvalidUserSessionException がそのまま伝播すること', () async {
       fakeAuthRepository.errorToThrow = InvalidUserSessionException();
       expect(
         () => accountService.finalizeAccountRegistration(),
@@ -139,7 +154,15 @@ void main() {
       );
     });
 
-    test('異常系: 通信エラー時、NetworkException を投げること', () async {
+    test('異常系: EmailNotVerifiedException がそのまま伝播すること', () async {
+      fakeAuthRepository.errorToThrow = EmailNotVerifiedException();
+      expect(
+        () => accountService.finalizeAccountRegistration(),
+        throwsA(isA<EmailNotVerifiedException>()),
+      );
+    });
+
+    test('異常系: NetworkException がそのまま伝播すること', () async {
       fakeAuthRepository.errorToThrow = NetworkException();
       expect(
         () => accountService.finalizeAccountRegistration(),
@@ -147,35 +170,60 @@ void main() {
       );
     });
 
-    test('異常系: 予期せぬエラー時、「テストエラー」として Exception を投げること', () async {
-      fakeAuthRepository.errorToThrow = Exception('テストエラー');
+    test('異常系: 予期せぬエラーの場合、Exception でラップされること', () async {
+      fakeAuthRepository.errorToThrow = Exception('予期せぬエラー');
       expect(
         () => accountService.finalizeAccountRegistration(),
-        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('テストエラー'))),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('予期せぬエラー'))),
       );
     });
   });
 
   // =======================================================
-  // 3. バリデーション機能（単体）のテスト
+  // resendVerificationEmail のテスト
   // =======================================================
-  group('AccountCreationService - バリデーション単体テスト', () {
-    
-    test('validateDomain: 正しい大学のドメインなら true を返すこと', () {
-      // 正常系のテスト
-      final result = accountService.validateDomain('student@shibaura-it.ac.jp');
-      expect(result, isTrue);
+  group('AccountCreationService - resendVerificationEmail のテスト', () {
+    test('正常系: エラーなく完了すること', () async {
+      fakeAuthRepository.errorToThrow = null;
+      await expectLater(accountService.resendVerificationEmail(), completes);
     });
 
-    test('validateDomain: 異なるドメインや無効な形式なら false を返すこと', () {
-      // 異常系のテスト（同値分割・境界値分析）
-      expect(accountService.validateDomain('test@gmail.com'), isFalse);
-      expect(accountService.validateDomain('test@yahoo.co.jp'), isFalse);
-      expect(accountService.validateDomain(''), isFalse); // 空文字
-      expect(accountService.validateDomain('shibaura-it.ac.jp'), isFalse); // @がない
+    test('異常系: InvalidUserSessionException がそのまま伝播すること', () async {
+      fakeAuthRepository.errorToThrow = InvalidUserSessionException();
+      expect(
+        () => accountService.resendVerificationEmail(),
+        throwsA(isA<InvalidUserSessionException>()),
+      );
+    });
+
+    test('異常系: TooManyRequestsException がそのまま伝播すること', () async {
+      fakeAuthRepository.errorToThrow = TooManyRequestsException();
+      expect(
+        () => accountService.resendVerificationEmail(),
+        throwsA(isA<TooManyRequestsException>()),
+      );
+    });
+
+    test('異常系: NetworkException がそのまま伝播すること', () async {
+      fakeAuthRepository.errorToThrow = NetworkException();
+      expect(
+        () => accountService.resendVerificationEmail(),
+        throwsA(isA<NetworkException>()),
+      );
+    });
+
+    test('異常系: 予期せぬエラーの場合、Exception でラップされること', () async {
+      fakeAuthRepository.errorToThrow = Exception('Unknown Error');
+      expect(
+        () => accountService.resendVerificationEmail(),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('Unknown Error'))),
+      );
     });
   });
 
+  // =======================================================
+  // cancelAndCleanupAccount のテスト
+  // =======================================================
   group('AccountCreationService - cancelAndCleanupAccount のテスト', () {
     test('正常系: エラーなく完了すること', () async {
       fakeAuthRepository.errorToThrow = null;
@@ -190,11 +238,11 @@ void main() {
       );
     });
 
-    test('異常系: その他のエラーが Exception に変換されて投げられること', () async {
-      fakeAuthRepository.errorToThrow = Exception('テストエラー');
+    test('異常系: 予期せぬエラーの場合、Exception でラップされること', () async {
+      fakeAuthRepository.errorToThrow = Exception('Unknown Cleanup Error');
       expect(
         () => accountService.cancelAndCleanupAccount(),
-        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('テストエラー'))),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('Unknown Cleanup Error'))),
       );
     });
   });

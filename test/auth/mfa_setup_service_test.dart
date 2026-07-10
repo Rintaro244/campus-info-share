@@ -37,6 +37,8 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> requestSignOut() => throw UnimplementedError();
   @override
   Future<void> deleteCurrentUser() => throw UnimplementedError();
+  @override
+  Future<void> requestResendVerificationEmail() => throw UnimplementedError();
 }
 
 // =======================================================

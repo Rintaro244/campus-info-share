@@ -152,7 +152,7 @@ class AuthenticationController {
     } on TooManyRequestsException {
       throw Exception('メール送信回数が上限に達しました。しばらく待ってから再度お試しください');
     } on InvalidUserSessionException {
-      throw Exception('セッションが切れました。もう一度最初から登録し直してください');
+      throw Exception('セッションが無効になりました。もう一度最初から登録し直してください');
     } on NetworkException {
       throw Exception('ネットワークエラーが発生しました。時間を置いて再度お試しください');
     } catch (e) {

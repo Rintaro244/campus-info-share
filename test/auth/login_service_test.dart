@@ -16,6 +16,12 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> checkEmailVerification() async {
+    // メール認証エラーを出したい場合はここで errorToThrow を投げる処理を書いても良いです
+    if (errorToThrow is EmailNotVerifiedException) throw errorToThrow!;
+  }
+
+  @override
   Future<bool> checkIsMfaEnrolled() async {
     return mfaEnrolled;
   }
@@ -28,8 +34,8 @@ class FakeAuthRepository implements AuthRepository {
   // 今回呼ばれない機能
   @override
   Future<void> createTemporaryAccount(String email, String password) => throw UnimplementedError();
-  @override
-  Future<void> checkEmailVerification() => throw UnimplementedError();
+  //@override
+  //Future<void> checkEmailVerification() => throw UnimplementedError();
   @override
   Future<String> generateTotpSecretUrl() => throw UnimplementedError();
   @override
@@ -38,6 +44,8 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> requestSignOut() => throw UnimplementedError();
   @override
   Future<void> deleteCurrentUser() => throw UnimplementedError();
+  @override
+  Future<void> requestResendVerificationEmail() => throw UnimplementedError();
 }
 
 // =======================================================
@@ -65,6 +73,14 @@ void main() {
         throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('メールアドレスとパスワードを入力してください'))),
       );
     });*/
+
+    test('異常系: メール未認証の場合、EmailNotVerifiedException を投げること', () async {
+    fakeAuthRepository.errorToThrow = EmailNotVerifiedException();
+    expect(
+      () => loginService.processLogin('test@shibaura-it.ac.jp', 'password'),
+      throwsA(isA<EmailNotVerifiedException>()),
+    );
+  });
 
     test('異常系: MFA未登録の場合、MfaSetupRequiredException を投げること', () async {
       fakeAuthRepository.errorToThrow = null;

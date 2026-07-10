@@ -128,21 +128,21 @@ void main() {
   test('異常系: 6桁未満の数字の場合、バリデーションエラーを投げること', () async {
     expect(
       () => controller.submitOtp('12345'), // 5桁
-      throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('6桁の認証コード(数字)を正しく入力してください。'))),
+      throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('6桁の認証コード(数字)を正しく入力してください'))),
     );
   });
 
   test('異常系: 数字以外の文字が含まれる場合、バリデーションエラーを投げること', () async {
     expect(
       () => controller.submitOtp('12345a'), // 英字混じり
-      throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('6桁の認証コード(数字)を正しく入力してください。'))),
+      throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('6桁の認証コード(数字)を正しく入力してください'))),
     );
   });
 
   test('異常系: 空文字の場合、バリデーションエラーを投げること', () async {
     expect(
       () => controller.submitOtp(''), // 空文字
-      throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('6桁の認証コード(数字)を正しく入力してください。'))),
+      throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('6桁の認証コード(数字)を正しく入力してください'))),
     );
   });
 });
@@ -180,40 +180,10 @@ void main() {
 
     test('パスワードと確認用パスワードが一致しない場合は Exception をスローすること', () async {
       expect(
-        () => controller.submitRegistration('test@shibaura.ac.jp', 'password123', 'different_password'),
+        () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'different_password'),
         throwsA(predicate((e) => e.toString().contains('パスワードが一致しません'))),
       );
     });
-
-    test('新規登録成功時は例外を投げずに終了すること', () async {
-      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
-          .thenAnswer((_) async {});
-
-      await expectLater(
-        controller.submitRegistration('test@shibaura.ac.jp', 'password123', 'password123'),
-        completes,
-      );
-    });
-
-    test('ドメインが無効な場合、適切なエラーの Exception を返すこと', () async {
-      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
-          .thenThrow(InvalidDomainException());
-
-      expect(
-        () => controller.submitRegistration('test@gmail.com', 'password123', 'password123'),
-        throwsA(predicate((e) => e.toString().contains('芝浦工業大学のメールアドレス (@shibaura-it.ac.jp または @sic.shibaura-it.ac.jp) を使用してください'))),
-      );
-    });
-
-    /*test('予期せぬ一般エラーが発生した場合、メッセージをそのまま保持して Exception を返すこと', () async {
-      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
-          .thenThrow(Exception('カスタムネットワークエラー'));
-
-      expect(
-        () => controller.submitRegistration('test@shibaura.ac.jp', 'password123', 'password123'),
-        throwsA(predicate((e) => e.toString().contains('カスタムネットワークエラー'))),
-      );
-    });*/
 
     test('異常系: パスワードが英数字混合・8文字以上でない場合、Exception を投げること', () async {
       // 'pass' という弱いパスワードを渡してバリデーションに引っ掛ける
@@ -223,31 +193,134 @@ void main() {
       );
     });
 
+    test('新規登録成功時は例外を投げずに終了すること', () async {
+      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
+          .thenAnswer((_) async {});
+
+      await expectLater(
+        controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+        completes,
+      );
+    });
+
+    test('異常系: ドメインが無効な場合、適切なエラーの Exception を返すこと', () async {
+      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
+          .thenThrow(InvalidDomainException());
+      expect(
+        () => controller.submitRegistration('test@gmail.com', 'password123', 'password123'),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('芝浦工業大学のメールアドレス'))),
+      );
+    });
+
     test('異常系: AccountCreationFailedException 発生時、Exception を投げること', () async {
       when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
           .thenThrow(AccountCreationFailedException());
-      expect(() => controller.submitRegistration('test@shibaura-it.ac.jp', 'Password123', 'Password123'), throwsA(isA<Exception>()));
+      expect(
+        () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('アカウント作成に失敗'))),
+      );
     });
 
     test('異常系: MailSendFailureException 発生時、Exception を投げること', () async {
       when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
           .thenThrow(MailSendFailureException());
-      expect(() => controller.submitRegistration('test@shibaura-it.ac.jp', 'Password123', 'Password123'), throwsA(isA<Exception>()));
+      expect(
+        () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('確認メールの送信に失敗'))),
+      );
     });
 
-    test('異常系: EmailAlreadyInUseException 発生時、Exception を投げること', () async {
+    test('異常系: 通信エラー時、ネットワークエラーとして Exception がスローされること', () async {
       when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
-          .thenThrow(EmailAlreadyInUseException());
-      expect(() => controller.submitRegistration('test@shibaura-it.ac.jp', 'Password123', 'Password123'), throwsA(isA<Exception>()));
+          .thenThrow(NetworkException());
+      expect(
+        () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('ネットワークエラー'))),
+      );
     });
 
-    test('通信エラー時、NetworkException がそのまま rethrow されること', () async {
-      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any())).thenThrow(NetworkException());
-      expect(() => controller.submitRegistration('test@shibaura-it.ac.jp', 'Password123', 'Password123'), throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('ネットワークエラー'))));
+    test('異常系: その他の予期せぬエラー時、Exception にラップされてスローされること', () async {
+      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
+          .thenThrow(Exception('Unknown Error'));
+      expect(
+        () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('Unknown Error'))),
+      );
     });
-    test('その他の致命的エラー時、Exception にラップされてスローされること', () async {
-      when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any())).thenThrow(ArgumentError('システムエラー'));
-      expect(() => controller.submitRegistration('test@shibaura-it.ac.jp', 'Password123', 'Password123'), throwsA(isA<Exception>()));
+
+    // ==============================================================
+    // 👇 ここからが追加する EmailAlreadyInUseException 用のテストグループ
+    // ==============================================================
+    group('EmailAlreadyInUseException 発生時の内部フロー（processLogin）のテスト', () {
+      setUp(() {
+        // 大前提として requestAccountCreation が必ず EmailAlreadyInUseException を投げるように設定
+        when(() => mockAccountCreationService.requestAccountCreation(any(), any(), any()))
+            .thenThrow(EmailAlreadyInUseException());
+      });
+
+      test('異常系: processLogin が成功した場合、「すでに登録が完了しています」エラーを投げること', () async {
+        when(() => mockLoginService.processLogin(any(), any())).thenAnswer((_) async {});
+        expect(
+          () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+          throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('すでに登録が完了しています'))),
+        );
+      });
+
+      test('異常系: processLogin が EmailNotVerifiedException を投げた場合、そのまま rethrow されること', () async {
+        when(() => mockLoginService.processLogin(any(), any())).thenThrow(EmailNotVerifiedException());
+        expect(
+          () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+          throwsA(isA<EmailNotVerifiedException>()),
+        );
+      });
+
+      test('異常系: processLogin が MultiFactorAuthRequiredException を投げた場合、MFA設定エラーを投げること', () async {
+        when(() => mockLoginService.processLogin(any(), any())).thenThrow(MultiFactorAuthRequiredException());
+        expect(
+          () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+          throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('MFA設定を行ってください'))),
+        );
+      });
+
+      test('異常系: processLogin が MfaSetupRequiredException を投げた場合、MFA設定エラーを投げること', () async {
+        when(() => mockLoginService.processLogin(any(), any())).thenThrow(MfaSetupRequiredException());
+        expect(
+          () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+          throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('MFA設定を行ってください'))),
+        );
+      });
+
+      test('異常系: processLogin が InvalidCredentialException を投げた場合、既に使用されている旨のエラーを投げること', () async {
+        when(() => mockLoginService.processLogin(any(), any())).thenThrow(InvalidCredentialException());
+        expect(
+          () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+          throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('既に使用されています'))),
+        );
+      });
+
+      test('異常系: processLogin が InvalidUserSessionException を投げた場合、セッション無効エラーを投げること', () async {
+        when(() => mockLoginService.processLogin(any(), any())).thenThrow(InvalidUserSessionException());
+        expect(
+          () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+          throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('セッションが無効になりました'))),
+        );
+      });
+
+      test('異常系: processLogin が NetworkException を投げた場合、ネットワークエラーを投げること', () async {
+        when(() => mockLoginService.processLogin(any(), any())).thenThrow(NetworkException());
+        expect(
+          () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+          throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('ネットワークエラーが発生しました'))),
+        );
+      });
+
+      test('異常系: processLogin が その他のException を投げた場合、Exceptionにラップして投げること', () async {
+        when(() => mockLoginService.processLogin(any(), any())).thenThrow(Exception('Unknown process login error'));
+        expect(
+          () => controller.submitRegistration('test@shibaura-it.ac.jp', 'password123', 'password123'),
+          throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('Unknown process login error'))),
+        );
+      });
     });
   });
 
@@ -445,6 +518,56 @@ group('checkEmailVerified のテスト', () {
     test('その他の致命的エラー時、Exception にラップされてスローされること', () async {
       when(() => mockAccountCreationService.cancelAndCleanupAccount()).thenThrow(ArgumentError('システムエラー'));
       expect(() => controller.deleteCurrentTemporaryAccount(), throwsA(isA<Exception>()));
+    });
+  });
+
+
+
+  group('Email のテスト', () {
+    test('正常系: サービスの再送処理が正常に完了すること', () async {
+      // 💡 メソッド名が異なる場合は、コントローラーの実際のメソッド名に合わせて変更してください（例: resendEmailなど）
+      when(() => mockAccountCreationService.resendVerificationEmail())
+          .thenAnswer((_) async {});
+      await expectLater(controller.resendEmail(), completes);
+    });
+
+    test('異常系: InvalidUserSessionException が発生した場合、適切なメッセージを投げること', () async {
+      when(() => mockAccountCreationService.resendVerificationEmail())
+          .thenThrow(InvalidUserSessionException());
+      expect(
+        () => controller.resendEmail(),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('セッションが無効'))),
+      );
+    });
+
+    // 💡 TooManyRequestsException はカスタム例外に存在する場合は有効化してください
+    
+    test('異常系: TooManyRequestsException が発生した場合、専用のメッセージを投げること', () async {
+      when(() => mockAccountCreationService.resendVerificationEmail())
+          .thenThrow(TooManyRequestsException());
+      expect(
+        () => controller.resendEmail(),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('メール送信回数が上限に達しました'))),
+      );
+    });
+    
+
+    test('異常系: NetworkException時、ネットワークエラーのメッセージを投げること', () async {
+      when(() => mockAccountCreationService.resendVerificationEmail())
+          .thenThrow(NetworkException());
+      expect(
+        () => controller.resendEmail(),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('ネットワークエラー'))),
+      );
+    });
+
+    test('異常系: その他のエラー時、Exceptionにラップして投げること', () async {
+      when(() => mockAccountCreationService.resendVerificationEmail())
+          .thenThrow(Exception('Unknown'));
+      expect(
+        () => controller.resendEmail(),
+        throwsA(isA<Exception>().having((e) => e.toString(), 'message', contains('Unknown'))),
+      );
     });
   });
 }
