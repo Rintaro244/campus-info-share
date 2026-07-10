@@ -13,6 +13,7 @@ import 'package:student_information_1/payment/models/transaction_models.dart';
 import 'package:student_information_1/payment/payment_integration.dart';
 import 'package:student_information_1/payment/providers.dart';
 import 'package:student_information_1/payment/services/c5_interfaces.dart';
+import 'package:student_information_1/payment/services/card_payment_client.dart';
 import 'package:student_information_1/payment/services/in_memory_pending_item_store.dart';
 import 'package:student_information_1/payment/services/item_catalog_repository.dart';
 import 'package:student_information_1/payment/ui/flutter_payment_navigator.dart';
@@ -80,6 +81,16 @@ class FakeFreeTransferClient implements FreeTransferClient {
   }
 }
 
+/// カード決済クライアントの Fake。ここでは card_entry 画面がクラッシュせず描画できれば
+/// 十分（このファイルのテストは決済実行までは踏み込まない）。入力欄はダミーを返す。
+class FakeCardPaymentClient implements CardPaymentClient {
+  @override
+  Widget buildCardInput() => const SizedBox.shrink();
+
+  @override
+  Future<void> confirmPayment({required String clientSecret}) async {}
+}
+
 const paidItem = Item(
   listingId: 'item_paid',
   title: '線形代数の教科書',
@@ -118,6 +129,7 @@ Widget buildTestApp({
       freeTransferClientProvider
           .overrideWithValue(freeTransfer ?? FakeFreeTransferClient()),
       pendingItemStoreProvider.overrideWithValue(pendingStore),
+      cardPaymentClientProvider.overrideWithValue(FakeCardPaymentClient()),
       paymentNavigatorProvider.overrideWithValue(
         FlutterPaymentNavigator(navigatorKey: navKey, messengerKey: msgKey),
       ),
