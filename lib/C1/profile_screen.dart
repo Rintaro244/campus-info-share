@@ -8,6 +8,7 @@ import '../C3/lecture_manager.dart';
 import 'package:student_information_1/C1/auth/authentication_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:student_information_1/C1/auth/authentication_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -31,7 +32,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchUserData() async {
     setState(() { _isLoading = true; });
 
-    //const targetUserId = 'dummy_user_123'; 
 
     //現在ログイン中のUIDを取得
     final currentUser = FirebaseAuth.instance.currentUser;

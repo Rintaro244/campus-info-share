@@ -3,7 +3,8 @@
 import 'dart:typed_data'; 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../C3/circle_manager.dart'; 
+import '../C3/circle_manager.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CirclePostScreen extends StatefulWidget {
   const CirclePostScreen({Key? key}) : super(key: key);
@@ -51,8 +52,7 @@ class _CirclePostScreenState extends State<CirclePostScreen> {
       category: _selectedCategory,
       description: desc,
       imageBytes: _imageBytes, 
-      
-      userId: 'dummy_user_123', 
+      userId: FirebaseAuth.instance.currentUser?.uid ?? '', 
     );
 
     setState(() { _isUploading = false; }); 
