@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LectureDetailScreen extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -16,7 +17,7 @@ class _LectureDetailScreenState extends State<LectureDetailScreen> {
 
   // 💡 いまログインしている人（仮のID）。
   // チームのログイン機能と合体した後は、ここを本物のログインIDに書き換えます！
-  final String currentLoginUid = 'dummy_user_123';
+  final String currentLoginUid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {
