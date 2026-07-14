@@ -131,6 +131,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       //アプリ落ち対策
                     }
 
+                    if (!context.mounted) return;
+
                     Navigator.pushReplacementNamed(context, '/email-verification');
                     return;
                   }

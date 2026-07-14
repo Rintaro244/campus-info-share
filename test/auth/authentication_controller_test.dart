@@ -46,7 +46,6 @@ void main() {
       mfaSetupService: mockMfaSetupService,
     );
     
-    cSessionUid = null;
   });
 
   group('AuthenticationController - コンストラクタのテスト', () {
@@ -68,7 +67,6 @@ void main() {
       final result = await controller.submitLogin('test@example.com', 'password123');
 
       expect(result, 1);
-      expect(cSessionUid, 'dummy_uid_form_firebase');
       verify(() => mockLoginService.processLogin('test@example.com', 'password123')).called(1);
     });
 
@@ -116,8 +114,6 @@ void main() {
       when(() => mockLoginService.verifyOTP(any())).thenAnswer((_) async {});
 
       await controller.submitOtp('123456');
-
-      expect(cSessionUid, 'dummy_uid_form_firebase');
       verify(() => mockLoginService.verifyOTP('123456')).called(1);
     });
 
@@ -473,12 +469,9 @@ group('checkEmailVerified のテスト', () {
 
   group('submitLogout のテスト', () {
     test('ログアウト成功時、cSessionUid が null になること', () async {
-      cSessionUid = 'before_logout_uid';
       when(() => mockLogoutService.processLogout()).thenAnswer((_) async {});
 
       await controller.submitLogout();
-
-      expect(cSessionUid, null);
       verify(() => mockLogoutService.processLogout()).called(1);
     });
 

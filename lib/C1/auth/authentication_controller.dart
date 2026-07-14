@@ -5,10 +5,6 @@ import 'package:student_information_1/C2/auth/mfa_setup_service.dart';
 import 'package:student_information_1/shared/auth_exceptions.dart';
 //import 'dart:async';
 
-
-//グローバル変数
-String? cSessionUid;
-
 class AuthenticationController {
   final AccountCreationService _accountCreationService;
   final LoginService _loginService;
@@ -33,8 +29,6 @@ class AuthenticationController {
 
     try {
       await _loginService.processLogin(mailAddress, password);
-      cSessionUid = 'dummy_uid_form_firebase';
-
 
       //ログイン成功
       return 1;
@@ -65,10 +59,8 @@ class AuthenticationController {
 
     try {
       await _loginService.verifyOTP(otpCode);
-
-      cSessionUid ='dummy_uid_form_firebase';
     } on InvalidOtpException {
-      throw Exception('認証コードが間違っているか、有効期限が切れています');
+      throw Exception('認証コードが正しくありません。もう一度確認してください');
     } on NetworkException {
       throw Exception('ネットワークエラーが発生しました');
     } catch (e) {
@@ -103,7 +95,7 @@ class AuthenticationController {
         //未認証だけどアカウント作成されてるかどうかを確かめる
         await _loginService.processLogin(mailAddress, password);
         //未認証でない場合
-        throw Exception('このメールアドレスはすでに登録が完了しています。ログイン画面からログインしてください');
+        throw Exception('メール認証はすでに完了しています。ログイン画面からログインしてください');
       } on EmailNotVerifiedException {
         //未認証の場合
         rethrow;
@@ -214,7 +206,6 @@ class AuthenticationController {
   Future<void> submitLogout() async {
     try {
       await _logoutService.processLogout();
-      cSessionUid = null;
     } catch (e) {
       throw Exception('ログアウトに失敗しました');
     }

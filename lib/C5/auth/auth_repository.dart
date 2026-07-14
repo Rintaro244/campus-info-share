@@ -1,8 +1,6 @@
-//import 'package:flutter/material.dart';
-//import 'package:student_information_1/C3/user_manager.dart';
-//import 'package:student_information_1/models/user_profile.dart';
 import 'package:student_information_1/shared/auth_exceptions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthRepository {
 
@@ -70,7 +68,7 @@ class AuthRepository {
 
       // FirebaseのAPIを使ってメールを再送信
       await user.sendEmailVerification();
-      print('Firebase: 確認メールを再送信しました');
+      debugPrint('Firebase: 確認メールを再送信しました');
       
     } on FirebaseAuthException catch (e) {
       if (e.code == 'too-many-requests') {
@@ -235,7 +233,7 @@ class AuthRepository {
       }
       throw Exception('アカウント削除に失敗しました: ${e.code}');
     } catch (e) {
-      throw Exception('不明なエラー');
+      throw Exception('アカウント削除に失敗しました');
     }
   }
 }

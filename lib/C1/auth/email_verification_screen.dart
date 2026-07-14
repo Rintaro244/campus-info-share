@@ -16,7 +16,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   // タイマーを管理する変数（破棄できるようにここに定義する）
   Timer? _timer;
   int _tickCount = 0;
-  final int _maxTicks = 200; //3秒ごとのTickが200回呼び出されたらタイムアウト
+  final int _maxTicks = 100; //3秒ごとのTickが100回呼び出されたらタイムアウト
 
   Timer? _resendTimer;
   int _resendCountdown = 0; // 0のときはボタンを押せる
@@ -47,7 +47,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         try{
           await _controller.deleteCurrentTemporaryAccount();
         } catch (e) {
-          print(e);
+          debugPrint(e.toString());
         }
 
         if (!mounted) return;
