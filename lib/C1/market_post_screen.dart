@@ -113,7 +113,7 @@ class _MarketPostScreenState extends ConsumerState<MarketPostScreen> {
                 child: _imageBytes != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.memory(_imageBytes!, fit: BoxFit.cover),
+                        child: Image.memory(_imageBytes!, fit: BoxFit.contain),
                       )
                     : const Column(
                         mainAxisAlignment: MainAxisAlignment.center,

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../C3/circle_model.dart';
 
 class CircleDetailScreen extends StatelessWidget {
-  // 💡 前の画面（一覧）から渡されるサークルデータを受け取る箱
   final CircleModel circle;
 
   const CircleDetailScreen({Key? key, required this.circle}) : super(key: key);
@@ -18,14 +17,12 @@ class CircleDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 💡 サークル名
             Text(
               circle.name,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             
-            // 💡 キャンパスとカテゴリのタグ
             Row(
               children: [
                 Chip(
@@ -43,7 +40,6 @@ class CircleDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // 💡 紹介文エリア
             const Text(
               'サークル紹介',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
@@ -55,17 +51,22 @@ class CircleDetailScreen extends StatelessWidget {
               style: const TextStyle(fontSize: 16, height: 1.5),
             ),
             
-            // ⚠️ 画像表示エリア（画像アップロード機能を作ったらここに表示します！）
             const SizedBox(height: 32),
-            // 💡 画像URLがあればネットワークから画像を表示、なければグレーの箱を表示
             circle.imageUrl != null && circle.imageUrl!.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      circle.imageUrl!,
-                      width: double.infinity,
-                      height: 250,
-                      fit: BoxFit.cover, // 画像をいい感じに切り抜いて枠に収める
+                ? Container(
+                    width: double.infinity,
+                    height: 300, // 💡 高さを300に制限
+                    decoration: BoxDecoration(
+                      color: Colors.black87, // 💡 背景を黒にして画像を引き締める
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      // 💡 fitを contain に変更して全体をきれいに収める
+                      child: Image.network(
+                        circle.imageUrl!,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   )
                 : Container(

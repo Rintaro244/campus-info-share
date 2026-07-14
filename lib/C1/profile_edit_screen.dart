@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'profile_validator.dart';
 import '../C3/user_manager.dart'; // 💡 追加（パスは適宜調整してください）
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   final String currentName; // 💡 追加：前の画面から現在の名前を受け取る
@@ -110,15 +111,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       setState(() { _isSaving = true; });
 
                       // 💡 Firestoreに新しい名前を保存する！
-                      final success = await UserManager().updateUserName('dummy_user_123', text);
+                      //final success = await UserManager().updateUserName('dummy_user_123', text);
+                      final currentUser = FirebaseAuth.instance.currentUser;
+                      if (currentUser != null) {
+                        final success = await UserManager().updateUserName(currentUser.uid, text);
                       
-                      setState(() { _isSaving = false; });
+                        setState(() { _isSaving = false; });
 
-                      if (success && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('プロフィールを保存しました')));
-                        Navigator.of(context).pop(true); // 💡 保存成功を前の画面に伝えるために true を返す
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('保存に失敗しました'), backgroundColor: Colors.red));
+                        if (success && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('プロフィールを保存しました')));
+                          Navigator.of(context).pop(true); // 💡 保存成功を前の画面に伝えるために true を返す
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('保存に失敗しました'), backgroundColor: Colors.red));
+                        }
                       }
                     },
                     style: ElevatedButton.styleFrom(

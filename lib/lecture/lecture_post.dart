@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LecturePostScreen extends StatefulWidget {
   const LecturePostScreen({super.key});
@@ -33,7 +34,7 @@ class _LecturePostScreenState extends State<LecturePostScreen> {
               color: Colors.amber,
               iconSize: 36,
               onPressed: () => onRatingChanged(index + 1),
-            );
+            );  
           }),
         ),
       ],
@@ -60,7 +61,7 @@ class _LecturePostScreenState extends State<LecturePostScreen> {
         'task_amount_rating': taskAmount,
         'pace_rating': pace,
         'created_at': FieldValue.serverTimestamp(),
-        'uid': 'dummy_user_123',        
+        'uid': FirebaseAuth.instance.currentUser?.uid ?? '',// 👈 ログインしているユーザーのUIDを保存
       });
 
       print('🎉 統一された学部名で投稿しました！');
