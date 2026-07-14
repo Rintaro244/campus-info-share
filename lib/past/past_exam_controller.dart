@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 // 同じフォルダ(lib)にあるファイルを読み込む
 import 'past_exam.dart';
 import 'past_exam_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // アプリのどこからでもControllerを呼び出せるようにする「プロバイダー（Riverpod）」
 final pastExamControllerProvider = ChangeNotifierProvider((ref) {
@@ -122,7 +123,7 @@ class PastExamController extends ChangeNotifier {
         professorName: professorName,
         fileUrls: fileUrls,
         createdAt: DateTime.now(),
-        userId: 'dummy_user_id', 
+        userId: FirebaseAuth.instance.currentUser?.uid ?? '', 
       );
 
       await _repository.addPastExam(newExam);

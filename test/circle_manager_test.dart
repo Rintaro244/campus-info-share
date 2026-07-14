@@ -9,7 +9,6 @@ void main() {
     // 各テストケースが実行される前に、毎回CircleManagerとデータベースを初期化する
     setUp(() {
       circleManager = CircleManager();
-      CircleManager.resetForTest(); // 💡 毎テスト前にデータをきれいにする！
     });
 
     // ==========================================
@@ -24,6 +23,7 @@ void main() {
           campus: '豊洲',
           category: '文化系',
           description: '正常な紹介文',
+          userId: 'test_user_123', // 💡 userId を追加
         );
         expect(result, isFalse);
       });
@@ -34,6 +34,7 @@ void main() {
           campus: '豊洲',
           category: '文化系',
           description: '正常な紹介文',
+          userId: 'test_user_123', // 💡 userId を追加
         );
         expect(result, isTrue);
       });
@@ -44,6 +45,7 @@ void main() {
           campus: '豊洲',
           category: '文化系',
           description: '正常な紹介文',
+          userId: 'test_user_123', // 💡 userId を追加
         );
         expect(result, isTrue);
       });
@@ -54,8 +56,10 @@ void main() {
           campus: '豊洲',
           category: '文化系',
           description: '正常な紹介文',
+          userId: 'test_user_123', // 💡 userId を追加
         );
         expect(result, isFalse);
+      });
       });
 
       // --- 紹介文 (description) の境界値分析 ---
@@ -65,6 +69,7 @@ void main() {
           campus: '豊洲',
           category: '文化系',
           description: '',
+          userId: 'test_user_123', // 💡 userId を追加
         );
         expect(result, isFalse);
       });
@@ -75,6 +80,7 @@ void main() {
           campus: '豊洲',
           category: '文化系',
           description: 'あ',
+          userId: 'test_user_123', // 💡 userId を追加
         );
         expect(result, isTrue);
       });
@@ -85,6 +91,7 @@ void main() {
           campus: '豊洲',
           category: '文化系',
           description: 'あ' * 800,
+          userId: 'test_user_123', // 💡 userId を追加
         );
         expect(result, isTrue);
       });
@@ -95,11 +102,10 @@ void main() {
           campus: '豊洲',
           category: '文化系',
           description: 'あ' * 801,
+          userId: 'test_user_123', // 💡 userId を追加
         );
         expect(result, isFalse);
       });
-    });
-
     // ==========================================
     // 🔍 2. searchCircles (サークル検索) のテスト
     // ==========================================
