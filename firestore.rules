@@ -62,6 +62,39 @@ service cloud.firestore {
       }
     }
 
+    // おすすめスポット（C6）。閲覧は公開、作成・削除は投稿者本人のみ。
+    match /spots/{spotId} {
+
+      // 一覧・検索・詳細のため read は全員許可
+      allow read: if true;
+
+      // 投稿: ログイン済みで、authorUid が本人であること
+      allow create: if request.auth != null
+                    && request.resource.data.authorUid == request.auth.uid;
+
+      // 削除: 投稿者本人のみ
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.authorUid;
+
+      // 更新: 投稿者本人は可。それ以外は averageRating / reviewCount の集計更新のみ許可
+      // （レビュー投稿時に、本人でなくても平均評価・件数を更新するため）
+      allow update: if request.auth != null
+                    && (
+                      request.auth.uid == resource.data.authorUid
+                      || request.resource.data.diff(resource.data)
+                           .affectedKeys().hasOnly(['averageRating', 'reviewCount'])
+                    );
+
+      // レビュー（＝星評価付きコメント）。閲覧は公開、作成・編集・削除は本人のみ
+      match /reviews/{reviewId} {
+        allow read: if true;
+        allow create: if request.auth != null
+                      && request.resource.data.authorUid == request.auth.uid;
+        allow update, delete: if request.auth != null
+                      && request.auth.uid == resource.data.authorUid;
+      }
+    }
+
     // 取引成立チャット（C4）。取引が成立した二者（buyerId/sellerId）のみ読み書き可。
     // roomId = transactionId。ルーム本体はサーバ(Admin SDK トリガー)限定で作成する。
     match /chats/{roomId} {
@@ -103,6 +136,45 @@ service cloud.firestore {
                || request.auth.uid == get(/databases/$(database)/documents/chats/$(roomId)).data.sellerId);
         }
       }
+    }
+
+    // ── 講義口コミ（lecture）。閲覧は公開、作成は本人、編集・削除は投稿者本人のみ ──
+    // 所有者フィールド: uid（lecture_post.dart で currentUser.uid を保存）
+    match /lecture/{docId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if request.auth != null
+                    && request.auth.uid == resource.data.uid;
+    }
+
+    // ── サークル（circles）。閲覧は公開、作成は本人、編集・削除は投稿者本人のみ ──
+    // 所有者フィールド: userId（CircleModel.userId）
+    match /circles/{docId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+    }
+
+    // ── 過去問（past_exams）。閲覧は公開、作成は本人、編集・削除は投稿者本人のみ ──
+    // 所有者フィールド: userId（PastExam.userId）
+    match /past_exams/{docId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+    }
+
+    // ── プロフィール（users）。表示名は公開読み取り可、書き込みは本人のみ ──
+    // ドキュメントID = ユーザーの uid。ここには表示名 name 等のみ置く方針
+    // （氏名・学籍番号などの機密情報は Firebase Auth 側で管理し、公開情報と分離する）
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null
+                    && request.auth.uid == userId;
     }
   }
 }
