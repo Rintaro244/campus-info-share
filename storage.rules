@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// 学内情報共有システム — Firebase Storage セキュリティルール
+// 対象: 過去問PDF・商品画像・スポット写真。
+// 方針:
+//   - 閲覧(read)は公開（アプリ内で誰でも画像を表示するため）
+//   - 書き込み/削除(write)はログイン済みユーザーのみ（匿名アップロードを禁止）
+// 注記: ファイル単位の「投稿者本人のみ」まで縛るには、パス設計または
+//   firestore.get() による所有者照合が必要。投稿データ本体の本人制限は
+//   firestore.rules 側で担保しているため、ここではログイン必須までとする。
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
