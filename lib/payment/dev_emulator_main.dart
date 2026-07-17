@@ -3,7 +3,7 @@
 ///
 /// 本番 DB を汚さずに決済フロー（一覧→詳細→支払方法選択→確定）を手元で通すための起動口。
 /// 使い方:
-///   1. エミュレータ起動（auth:19099 / firestore:18080 / functions:15001）
+///   1. エミュレータ起動（auth:9099 / firestore:8080 / functions:5001）
 ///   2. Admin SDK 等で items に on_sale の教材をシード
 ///   3. flutter run -d chrome -t lib/payment/dev_emulator_main.dart
 /// 通常ビルド（lib/main.dart）には一切影響しない。
@@ -28,10 +28,10 @@ Future<void> main() async {
   );
 
   // すべてローカルエミュレータへ向ける（本番へは一切通信しない）。
-  await FirebaseAuth.instance.useAuthEmulator('localhost', 19099);
-  FirebaseFirestore.instance.useFirestoreEmulator('localhost', 18080);
+  await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+  FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
   FirebaseFunctions.instanceFor(region: functionsRegion)
-      .useFunctionsEmulator('localhost', 15001);
+      .useFunctionsEmulator('localhost', 5001);
 
   // エミュレータ限定: 匿名ログインで request.auth.uid を確保する。
   await FirebaseAuth.instance.signInAnonymously();
