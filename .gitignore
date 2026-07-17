@@ -61,6 +61,9 @@ local.properties
 functions/.secret.local
 functions/.secret*.local
 
+# Firebase deploy キャッシュ（自動生成・コミット不要）
+.firebase/
+
 # Secret / key files
 **/secrets.dart
 **/api_keys.dart

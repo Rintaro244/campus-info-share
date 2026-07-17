@@ -9,6 +9,7 @@ import 'package:student_information_1/C1/auth/authentication_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:student_information_1/C1/auth/authentication_controller.dart';
+import '../services/spot_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -60,6 +61,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       .where('uid', isEqualTo: targetUserId)
       .get();
 
+      final spotService = SpotService();
+      final allSpots = await spotService.searchSpots();
+      final mySpots = allSpots.where((spot) => spot.authorUid == targetUserId).toList();
 
       // 自分のIDのデータだけに絞り込む
       final myExams = allExams.where((exam) => exam.userId == targetUserId).toList();
@@ -113,6 +117,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'type': 'lecture', // 判別用
         });
       }
+
+      // スポットの変換
+      for (var spot in mySpots) {
+        combinedPosts.add({
+          'id': spot.spotId,
+          'title': spot.spotName,
+          'category': 'スポット', 
+          'date': '${spot.createdAt.year}/${spot.createdAt.month}/${spot.createdAt.day}',
+          'type': 'spot', // 判別用
+        });
+      }
+
 
       setState(() {
         _userName = fetchedName;
@@ -310,6 +326,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 // ✨ カテゴリに応じて削除処理を切り替え！
                                                 final postId = post['id'];
                                                 final postType = post['type'];
+                                                final myUid = FirebaseAuth.instance.currentUser?.uid;
 
                                                 if (postType == 'circle') {
                                                   await CircleManager().deleteCircle(postId, post['imageUrl']);
@@ -322,6 +339,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 } else if (postType == 'lecture') {
                                                   // 💡 講義情報の削除処理を呼び出す
                                                   await FirebaseFirestore.instance.collection('lecture').doc(postId).delete();
+                                                } else if (postType == 'spot' && myUid != null) {
+                                                  // 💡 スポットの削除処理を呼び出す
+                                                  await SpotService().deleteSpot(postId, myUid);
                                                 }
 
                                                 if (context.mounted) {

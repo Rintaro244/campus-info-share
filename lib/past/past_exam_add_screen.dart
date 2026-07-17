@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart'; // 💡 kIsWeb（Webかどうかの判定）を使うために追加
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'past_exam_controller.dart';
 
 class PastExamAddScreen extends ConsumerStatefulWidget {
-  const PastExamAddScreen({Key? key}) : super(key: key);
+  const PastExamAddScreen({super.key});
 
   @override
   ConsumerState<PastExamAddScreen> createState() => _PastExamAddScreenState();
@@ -20,7 +20,6 @@ class _PastExamAddScreenState extends ConsumerState<PastExamAddScreen> {
   final _subjectController = TextEditingController();
   final _professorController = TextEditingController();
   
-  // 💡 修正ポイント1：File ではなく XFile のまま保存する
   final List<XFile> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
 
@@ -38,7 +37,6 @@ class _PastExamAddScreenState extends ConsumerState<PastExamAddScreen> {
     final List<XFile> images = await _picker.pickMultiImage();
     if (images.isNotEmpty) {
       setState(() {
-        // 💡 修正ポイント2：Fileに変換せず、XFileのままリストに追加する
         _selectedImages.addAll(images);
       });
     }
@@ -46,7 +44,7 @@ class _PastExamAddScreenState extends ConsumerState<PastExamAddScreen> {
 
   /// 投稿ボタンが押された時の処理
   Future<void> _submit() async {
-    // 入力値のバリデーションチェック（未入力がないか）
+    // 入力値のバリデーションチェック（未入力がないか、年度が正しいか）
     if (!_formKey.currentState!.validate()) return;
     
     // 画像が1枚も選ばれていない場合は警告を出す
@@ -63,7 +61,6 @@ class _PastExamAddScreenState extends ConsumerState<PastExamAddScreen> {
     final controller = ref.read(pastExamControllerProvider);
     
     // ControllerのsubmitExamを呼び出してFirebaseに保存
-    // 💡 _selectedImages が XFile になったので、エラーが出なくなります！
     final success = await controller.submitExam(
       title: _titleController.text.trim(),
       year: int.parse(_yearController.text.trim()),
@@ -140,7 +137,13 @@ class _PastExamAddScreenState extends ConsumerState<PastExamAddScreen> {
                   decoration: _buildInputDecoration('例: 2025'),
                   validator: (value) {
                     if (value == null || value.isEmpty) return '年度を入力してください';
-                    if (int.tryParse(value) == null) return '半角数字で入力してください';
+                    
+                    final year = int.tryParse(value);
+                    if (year == null) return '半角数字で入力してください';
+                    
+                    // 💡 2000〜2026年以外の数値が入力されたらエラーにする
+                    if (year < 2000 || year > 2026) return '存在しない年度です';
+                    
                     return null;
                   },
                 ),

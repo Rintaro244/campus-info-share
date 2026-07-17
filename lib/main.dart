@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +26,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // オフライン時に直近に読み込んだデータを表示できるよう、Firestoreのローカルキャッシュを有効化する。
+  // アプリ全体で一度だけ設定すればよい（各機能での個別設定は不要）。
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
   );
   // 空キーガード: キー未指定（スポット担当が --dart-define 無しで起動する等）でも
   // クラッシュせず起動する。キーがあるときだけ Stripe を初期化する。
