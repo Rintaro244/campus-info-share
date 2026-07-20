@@ -75,3 +75,6 @@ claude_code_instruction_*.md
 
 # Windows / WSL Zone.Identifier artifacts
 *:Zone.Identifier
+
+# 作業用バックアップ（ドキュメント編集時の退避ファイル）
+*.bak_*
