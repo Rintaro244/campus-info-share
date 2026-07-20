@@ -29,6 +29,9 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  /// 出品取消の実行中フラグ（多重タップ防止）。
+  bool _deleting = false;
+
   @override
   void initState() {
     super.initState();
@@ -94,6 +97,49 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     if (mounted) _reloadItem();
   }
 
+  /// 出品取消（出品者本人 かつ on_sale のときのみ到達する）。
+  Future<void> _onCancelListingPressed(Item item) async {
+    // 重要操作は確認ダイアログを表示する（要求仕様書 §4.2）。
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('出品の取消'),
+        content: Text('「${item.displayTitle}」の出品を取り消しますか？\n（この操作は取り消せません）'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('取り消す'),
+          ),
+        ],
+      ),
+    );
+    if (proceed != true || !mounted) return;
+
+    setState(() => _deleting = true);
+    // 画像は放置方針のため imageUrl は渡さない（Storage 削除を発火させない）。
+    final ok = await ref
+        .read(marketManagerProvider)
+        .deleteProduct(item.listingId, null);
+    if (!mounted) return;
+    setState(() => _deleting = false);
+
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('出品を取り消しました')),
+      );
+      // 一覧へ戻る（market_search_screen が戻り時に一覧を再取得する）。
+      Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('出品の取消に失敗しました')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,6 +177,12 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
 
   Widget _buildContent(Item item) {
     final imageUrl = item.imageUrls.isNotEmpty ? item.imageUrls.first : null;
+    // 出品取消は「出品者本人」かつ「販売中(on_sale)」のときだけ表示（UI ガード。
+    // Rules 側でも本人×on_sale のみ許可しているため二重で担保される）。
+    final uid = ref.read(currentUidProvider);
+    final canCancel = uid != null &&
+        uid == item.sellerId &&
+        item.status == ItemStatus.onSale;
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,6 +280,22 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                     ),
                   ),
                 ),
+                // 出品者本人向け: 出品取消（本人 × on_sale のときのみ）。
+                if (canCancel) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed:
+                          _deleting ? null : () => _onCancelListingPressed(item),
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      label: const Text(
+                        '出品を取り消す',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
