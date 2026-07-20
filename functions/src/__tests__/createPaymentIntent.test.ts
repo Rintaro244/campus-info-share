@@ -61,6 +61,60 @@ describe('createPaymentIntentCore', () => {
     expect(createStripePaymentIntent).not.toHaveBeenCalled();
   });
 
+  it('ロック保持者本人の pending は購入可（本バグの真因修正）', async () => {
+    const createStripePaymentIntent = jest
+      .fn()
+      .mockResolvedValue({ id: 'pi_2', client_secret: 'cs_2' });
+    const deps: CreatePaymentIntentDeps = {
+      getItem: jest.fn(async () => ({
+        price: 1500,
+        status: ITEM_STATUS.pending,
+        sellerId: 'seller1',
+        buyerId: 'buyer1',
+      })),
+      createStripePaymentIntent,
+    };
+    const out = await createPaymentIntentCore(deps, {
+      listingId: 'item1',
+      buyerId: 'buyer1',
+    });
+    expect(out).toEqual({ clientSecret: 'cs_2', paymentIntentId: 'pi_2' });
+    expect(createStripePaymentIntent).toHaveBeenCalled();
+  });
+
+  it('他人がロック中(pending)の購入は 409（Stripe を呼ばない）', async () => {
+    const createStripePaymentIntent = jest.fn();
+    const deps: CreatePaymentIntentDeps = {
+      getItem: jest.fn(async () => ({
+        price: 1500,
+        status: ITEM_STATUS.pending,
+        sellerId: 'seller1',
+        buyerId: 'other',
+      })),
+      createStripePaymentIntent,
+    };
+    await expect(
+      createPaymentIntentCore(deps, { listingId: 'x', buyerId: 'buyer1' }),
+    ).rejects.toMatchObject({ code: 409 });
+    expect(createStripePaymentIntent).not.toHaveBeenCalled();
+  });
+
+  it('出品者本人による購入は 403（Stripe を呼ばない）', async () => {
+    const createStripePaymentIntent = jest.fn();
+    const deps: CreatePaymentIntentDeps = {
+      getItem: jest.fn(async () => ({
+        price: 1500,
+        status: ITEM_STATUS.onSale,
+        sellerId: 'buyer1',
+      })),
+      createStripePaymentIntent,
+    };
+    await expect(
+      createPaymentIntentCore(deps, { listingId: 'x', buyerId: 'buyer1' }),
+    ).rejects.toMatchObject({ code: 403 });
+    expect(createStripePaymentIntent).not.toHaveBeenCalled();
+  });
+
   it('価格不正: 500', async () => {
     const deps: CreatePaymentIntentDeps = {
       getItem: jest.fn(async () => ({ price: 0, status: ITEM_STATUS.onSale })),

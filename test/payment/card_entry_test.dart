@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:student_information_1/payment/models/transaction_models.dart';
 import 'package:student_information_1/payment/providers.dart';
+import 'package:student_information_1/payment/services/c5_interfaces.dart';
 import 'package:student_information_1/payment/services/card_payment_client.dart';
 import 'package:student_information_1/payment/ui/flutter_payment_navigator.dart';
 import 'package:student_information_1/payment/ui/payment_flow_navigation.dart';
@@ -34,6 +35,26 @@ class FakeCardPaymentClient implements CardPaymentClient {
     if (g != null) await g.future;
     final e = failWith;
     if (e != null) throw e;
+  }
+}
+
+/// 在庫ロック解放の記録用 Fake。決済失敗時に unlockItem が呼ばれるか検証する。
+class FakeItemRepository implements ItemRepository {
+  int unlockCalls = 0;
+
+  @override
+  Future<LockResult> lockItemForPurchase({
+    required String listingId,
+    required String buyerId,
+  }) {
+    // カード入力画面ではロックは上流(M2)で完了済みのため呼ばれない。
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String> unlockItem({required String listingId}) async {
+    unlockCalls++;
+    return 'unlocked';
   }
 }
 
@@ -80,11 +101,16 @@ const _args = CardEntryArgs(
 Widget _buildApp({
   required CardPaymentClient client,
   required PaymentNavigator navigator,
+  ItemRepository? itemRepository,
 }) {
   return ProviderScope(
     overrides: [
       cardPaymentClientProvider.overrideWithValue(client),
       paymentNavigatorProvider.overrideWithValue(navigator),
+      // 既定の FirestoreItemRepository は Firebase 初期化を要するため必ず Fake に差し替える。
+      itemRepositoryProvider.overrideWithValue(
+        itemRepository ?? FakeItemRepository(),
+      ),
     ],
     child: const MaterialApp(home: CardEntryScreen(args: _args)),
   );
@@ -106,7 +132,10 @@ void main() {
       (tester) async {
     final client = FakeCardPaymentClient();
     final nav = RecordingNavigator();
-    await tester.pumpWidget(_buildApp(client: client, navigator: nav));
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildApp(client: client, navigator: nav, itemRepository: repo),
+    );
 
     await tester.tap(find.widgetWithText(FilledButton, '支払う'));
     // 成功パスは _processing=true のまま遷移する（実アプリでは新画面へ push される）。
@@ -121,6 +150,8 @@ void main() {
     // 有償フローの transactionId は paymentIntentId（webhook が transactions/{pi} を作る）。
     expect(nav.completeTransactionId, 'pi_test_123');
     expect(nav.errorCode, isNull);
+    // 成功時はロックを解放しない（sold 化は Webhook が行う）。
+    expect(repo.unlockCalls, 0);
   });
 
   testWidgets('③ 支払う→confirmPayment失敗→showError、遷移せずボタン再活性', (tester) async {
@@ -128,7 +159,10 @@ void main() {
       failWith: const C4Exception(402, 'カードが拒否されました。'),
     );
     final nav = RecordingNavigator();
-    await tester.pumpWidget(_buildApp(client: client, navigator: nav));
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildApp(client: client, navigator: nav, itemRepository: repo),
+    );
 
     await tester.tap(find.widgetWithText(FilledButton, '支払う'));
     await tester.pumpAndSettle();
@@ -137,6 +171,8 @@ void main() {
     expect(nav.goToCompleteCalls, 0); // 遷移していない
     expect(nav.errorCode, 402);
     expect(nav.errorMessage, 'カードが拒否されました。');
+    // 決済失敗時は在庫ロックを解放して on_sale に戻す（再購入可能にする）。
+    expect(repo.unlockCalls, 1);
 
     // 失敗後はボタンが再活性（同じ画面で再試行できる）。
     final button = tester.widget<FilledButton>(
