@@ -1,8 +1,8 @@
 /// 学内情報共有システム — C5 外部連携・データアクセス処理部
 /// Cloud Functions Callable の例外を C4Exception へ写像する共通処理
 ///
-/// サーバ側 index.ts toHttpsError の写像（400→invalid-argument, 404→not-found,
-/// 409→failed-precondition, 502/503→unavailable, 401→unauthenticated）の逆変換。
+/// サーバ側 index.ts toHttpsError の写像（400→invalid-argument, 403→permission-denied,
+/// 404→not-found, 409→failed-precondition, 502/503→unavailable, 401→unauthenticated）の逆変換。
 library;
 
 import 'package:cloud_functions/cloud_functions.dart';
@@ -20,6 +20,8 @@ C4Exception mapFunctionsError(FirebaseFunctionsException e) {
       return C4Exception(401, message);
     case 'invalid-argument':
       return C4Exception(400, message);
+    case 'permission-denied':
+      return C4Exception(403, message);
     case 'not-found':
       return C4Exception(404, message);
     case 'failed-precondition':

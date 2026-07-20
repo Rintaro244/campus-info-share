@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:student_information_1/payment/models/transaction_models.dart';
 import 'package:student_information_1/payment/providers.dart';
+import 'package:student_information_1/payment/services/c5_interfaces.dart';
 import 'package:student_information_1/payment/ui/flutter_payment_navigator.dart';
 
 class CardEntryScreen extends ConsumerStatefulWidget {
@@ -32,28 +33,44 @@ class _CardEntryScreenState extends ConsumerState<CardEntryScreen> {
     setState(() => _processing = true);
 
     final args = widget.args;
+    // ref は await 後に画面が破棄されていると使えないため、事前に取得しておく。
+    final cardClient = ref.read(cardPaymentClientProvider);
+    final navigator = ref.read(paymentNavigatorProvider);
+    final itemRepository = ref.read(itemRepositoryProvider);
     try {
-      await ref
-          .read(cardPaymentClientProvider)
-          .confirmPayment(clientSecret: args.clientSecret);
+      await cardClient.confirmPayment(clientSecret: args.clientSecret);
       if (!mounted) return;
       // オーソリ OK。取引確定（items.status=sold / transactions.status=paid）は
       // Webhook が非同期に行うため、ここでは完了画面へ進むだけ。fulfill は呼ばない。
       // 有償フローの transactionId は paymentIntentId（webhook が transactions/{pi} を作る）。
-      ref.read(paymentNavigatorProvider).goToPurchaseComplete(
-            listingId: args.listingId,
-            transactionId: args.paymentIntentId,
-          );
+      navigator.goToPurchaseComplete(
+        listingId: args.listingId,
+        transactionId: args.paymentIntentId,
+      );
     } on C4Exception catch (e) {
+      // 決済失敗: M2 が掛けた在庫ロック(pending)を解放し on_sale へ戻す（再購入可能にする）。
+      // オーソリ未成立での失敗のため、ここで解放してよい（成立時はこの分岐に入らない）。
+      await _releaseLock(itemRepository, args.listingId);
       if (!mounted) return;
-      ref.read(paymentNavigatorProvider).showError(code: e.code, message: e.message);
+      navigator.showError(code: e.code, message: e.message);
       setState(() => _processing = false); // 同じ画面で再試行できるよう再活性。
     } catch (e) {
+      await _releaseLock(itemRepository, args.listingId);
       if (!mounted) return;
-      ref
-          .read(paymentNavigatorProvider)
-          .showError(code: 502, message: '決済処理に失敗しました。');
+      navigator.showError(code: 502, message: '決済処理に失敗しました。');
       setState(() => _processing = false);
+    }
+  }
+
+  /// 決済失敗時の在庫ロック解放。解放自体の失敗は致命的でないため握りつぶす（要監視）。
+  Future<void> _releaseLock(
+    ItemRepository itemRepository,
+    String listingId,
+  ) async {
+    try {
+      await itemRepository.unlockItem(listingId: listingId);
+    } catch (_) {
+      // 解放に失敗すると pending が残るが、決済フロー自体は失敗として扱う。
     }
   }
 
