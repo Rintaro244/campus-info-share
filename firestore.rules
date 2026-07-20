@@ -42,12 +42,14 @@ service cloud.firestore {
             && request.resource.data.sellerId == resource.data.sellerId;
       }
 
-      // ロック: on_sale -> pending、買い手未設定 -> 自分の uid をセット
+      // ロック: on_sale -> pending、買い手未設定 -> 自分の uid をセット。
+      // 出品者本人は自分の教材を購入（ロック）できない。
       function isLock() {
         return resource.data.status == 'on_sale'
             && request.resource.data.status == 'pending'
             && resource.data.get('buyerId', null) == null
-            && request.resource.data.buyerId == request.auth.uid;
+            && request.resource.data.buyerId == request.auth.uid
+            && request.auth.uid != resource.data.sellerId;
       }
 
       // アンロック(ロールバック): pending -> on_sale、ロック保持者本人が buyerId をクリア
