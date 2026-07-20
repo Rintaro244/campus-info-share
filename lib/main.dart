@@ -37,6 +37,12 @@ void main() async {
   if (_stripePublishableKey.isNotEmpty) {
     Stripe.publishableKey = _stripePublishableKey;
     await Stripe.instance.applySettings();
+  } else {
+    // ガードが働いたことを起動時点で見えるようにする（C4 決済のデバッグ用ログ）。
+    // これが出ている状態でカード決済に進むと StripeConfigException になる。
+    debugPrint(
+      'Stripe 未初期化: STRIPE_PUBLISHABLE_KEY 未指定のため、カード決済は使用できません。',
+    );
   }
   runApp(
     const ProviderScope(
