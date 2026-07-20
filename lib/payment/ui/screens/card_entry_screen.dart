@@ -28,6 +28,39 @@ class _CardEntryScreenState extends ConsumerState<CardEntryScreen> {
   /// 決済処理中フラグ。二重送信防止とローディング表示に使う。
   bool _processing = false;
 
+  /// オーソリ成立済みフラグ。成立後は取引確定を Webhook が行うため、
+  /// 離脱時に在庫ロックを解放してはいけない（成立済みの購入を on_sale へ戻さない）。
+  bool _paymentAuthorized = false;
+
+  /// 解放済みフラグ。決済失敗時の解放と dispose 時の解放が二重に走るのを防ぐ。
+  bool _lockReleased = false;
+
+  /// dispose 後は ref を使えないため、リポジトリは初期化時に握っておく。
+  late final ItemRepository _itemRepository;
+
+  @override
+  void initState() {
+    super.initState();
+    _itemRepository = ref.read(itemRepositoryProvider);
+  }
+
+  @override
+  void dispose() {
+    // 決済を試みずに離脱した場合（戻る・popUntil 等）に在庫ロックを解放する。
+    // dispose は同期メソッドで await できないため fire-and-forget で投げる。
+    // 画面が既に無く通知先もないので失敗は握りつぶす。
+    // 注: Web ではタブを閉じる/リロードすると dispose 自体が走らない。
+    //   その取りこぼしはクライアントでは解消できず、サーバ側の pending 自動解放
+    //   （firestore.rules の TODO 参照）が恒久解となる。
+    if (!_paymentAuthorized && !_lockReleased) {
+      _lockReleased = true;
+      _itemRepository
+          .unlockItem(listingId: widget.args.listingId)
+          .catchError((Object _) => 'unlock-failed-on-dispose');
+    }
+    super.dispose();
+  }
+
   Future<void> _onPay() async {
     if (_processing) return; // 二重送信防止（処理中の連打を無視）。
     setState(() => _processing = true);
@@ -39,6 +72,9 @@ class _CardEntryScreenState extends ConsumerState<CardEntryScreen> {
     final itemRepository = ref.read(itemRepositoryProvider);
     try {
       await cardClient.confirmPayment(clientSecret: args.clientSecret);
+      // オーソリ成立。以降は dispose でロックを解放してはいけないため、
+      // mounted チェックより先にフラグを立てる（離脱と成功の競合対策）。
+      _paymentAuthorized = true;
       if (!mounted) return;
       // オーソリ OK。取引確定（items.status=sold / transactions.status=paid）は
       // Webhook が非同期に行うため、ここでは完了画面へ進むだけ。fulfill は呼ばない。
@@ -63,10 +99,12 @@ class _CardEntryScreenState extends ConsumerState<CardEntryScreen> {
   }
 
   /// 決済失敗時の在庫ロック解放。解放自体の失敗は致命的でないため握りつぶす（要監視）。
+  /// 解放済みを記録し、この後に離脱しても dispose 側で二重に解放しないようにする。
   Future<void> _releaseLock(
     ItemRepository itemRepository,
     String listingId,
   ) async {
+    _lockReleased = true;
     try {
       await itemRepository.unlockItem(listingId: listingId);
     } catch (_) {

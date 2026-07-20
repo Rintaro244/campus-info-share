@@ -116,6 +116,45 @@ Widget _buildApp({
   );
 }
 
+/// 離脱（pop）を伴うテスト用。前画面から push して CardEntryScreen を開く構成にする。
+/// `home:` 直置きだと戻るボタンが無く pageBack できないため、こちらを使う。
+Widget _buildAppWithPush({
+  required CardPaymentClient client,
+  required PaymentNavigator navigator,
+  ItemRepository? itemRepository,
+}) {
+  return ProviderScope(
+    overrides: [
+      cardPaymentClientProvider.overrideWithValue(client),
+      paymentNavigatorProvider.overrideWithValue(navigator),
+      itemRepositoryProvider.overrideWithValue(
+        itemRepository ?? FakeItemRepository(),
+      ),
+    ],
+    child: MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: ElevatedButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const CardEntryScreen(args: _args),
+              ),
+            ),
+            child: const Text('カード入力へ'),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// 前画面から CardEntryScreen へ遷移する。
+Future<void> _pushCardEntry(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(ElevatedButton, 'カード入力へ'));
+  await tester.pumpAndSettle();
+  expect(find.text('お支払い金額: ¥1500'), findsOneWidget);
+}
+
 void main() {
   testWidgets('① 金額・カード入力欄・支払うボタンを表示する', (tester) async {
     await tester.pumpWidget(
@@ -205,5 +244,72 @@ void main() {
     await tester.pump();
     expect(client.confirmCalls, 1);
     expect(nav.goToCompleteCalls, 1);
+  });
+
+  testWidgets('⑤ 決済せず戻るボタンで離脱すると在庫ロックを解放する', (tester) async {
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildAppWithPush(
+        client: FakeCardPaymentClient(),
+        navigator: RecordingNavigator(),
+        itemRepository: repo,
+      ),
+    );
+    await _pushCardEntry(tester);
+    expect(repo.unlockCalls, 0); // 表示しただけでは解放しない
+
+    await tester.pageBack(); // AppBar の戻るボタン
+    await tester.pumpAndSettle();
+
+    // 決済を試みずに離脱 → pending を on_sale へ戻す。
+    expect(repo.unlockCalls, 1);
+  });
+
+  testWidgets('⑥ 決済成功後に画面を破棄してもロックを解放しない（sold 化は Webhook）',
+      (tester) async {
+    final client = FakeCardPaymentClient();
+    final nav = RecordingNavigator();
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildAppWithPush(client: client, navigator: nav, itemRepository: repo),
+    );
+    await _pushCardEntry(tester);
+
+    await tester.tap(find.widgetWithText(FilledButton, '支払う'));
+    // 成功パスは遷移せずスピナーが回り続けるため有限 pump で継続処理をフラッシュする。
+    await tester.pump();
+    await tester.pump();
+    expect(nav.goToCompleteCalls, 1);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // オーソリ成立済み。ここで解放すると成立済みの購入を on_sale へ戻してしまう。
+    expect(repo.unlockCalls, 0);
+  });
+
+  testWidgets('⑦ 決済失敗後に離脱してもロック解放は1回だけ（二重解放しない）', (tester) async {
+    final client = FakeCardPaymentClient(
+      failWith: const C4Exception(402, 'カードが拒否されました。'),
+    );
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildAppWithPush(
+        client: client,
+        navigator: RecordingNavigator(),
+        itemRepository: repo,
+      ),
+    );
+    await _pushCardEntry(tester);
+
+    await tester.tap(find.widgetWithText(FilledButton, '支払う'));
+    await tester.pumpAndSettle();
+    expect(repo.unlockCalls, 1); // 失敗時の解放
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // dispose 側は解放済みフラグを見て何もしない。
+    expect(repo.unlockCalls, 1);
   });
 }
