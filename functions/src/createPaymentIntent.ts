@@ -49,8 +49,16 @@ export async function createPaymentIntentCore(
   if (!item) {
     throw new CoreError(404, '対象の教材が見つかりません。');
   }
-  // 在庫ロック相当: 販売中でなければ（既に手続き中/売却済なら）購入不可。
-  if (item.status !== ITEM_STATUS.onSale) {
+  // 出品者は自分の教材を購入できない（サーバ側の最終防御。UI/Rules でも弾く）。
+  if (item.sellerId !== undefined && item.sellerId === buyerId) {
+    throw new CoreError(403, '自分が出品した教材は購入できません。');
+  }
+  // 購入可能な状態: 販売中(on_sale)、または「自分が掛けた在庫ロック(pending)」。
+  // ※ 購入フローは createPaymentIntent の前に M2 が pending へロックするため、
+  //   自分が保持する pending を許可しないと正規フローが必ず 409 になる（本バグの真因）。
+  const heldBySelf =
+    item.status === ITEM_STATUS.pending && item.buyerId === buyerId;
+  if (item.status !== ITEM_STATUS.onSale && !heldBySelf) {
     throw new CoreError(409, 'この教材は現在購入できません（売却済または手続き中）。');
   }
   if (!Number.isInteger(item.price) || item.price <= 0) {

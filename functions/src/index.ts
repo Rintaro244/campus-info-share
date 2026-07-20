@@ -57,6 +57,8 @@ function toHttpsError(e: unknown): HttpsError {
     switch (e.code) {
       case 400:
         return new HttpsError('invalid-argument', e.message);
+      case 403:
+        return new HttpsError('permission-denied', e.message);
       case 404:
         return new HttpsError('not-found', e.message);
       case 409:
