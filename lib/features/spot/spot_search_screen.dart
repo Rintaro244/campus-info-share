@@ -181,7 +181,7 @@ class _SpotSearchScreenState extends State<SpotSearchScreen> {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 88),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            mainAxisExtent: 216,
+            mainAxisExtent: 224,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),
@@ -237,7 +237,7 @@ class _SpotCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        height: 200,
+        height: 212,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
