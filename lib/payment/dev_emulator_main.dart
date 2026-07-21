@@ -3,7 +3,7 @@
 ///
 /// 本番 DB を汚さずに決済フロー（一覧→詳細→支払方法選択→確定）を手元で通すための起動口。
 /// 使い方:
-///   1. エミュレータ起動（auth:9099 / firestore:8080 / functions:5001）
+///   1. エミュレータ起動（auth:9099 / firestore:8080 / functions:5001 / storage:9199）
 ///   2. Admin SDK 等で items に on_sale の教材をシード
 ///   3. flutter run -d chrome -t lib/payment/dev_emulator_main.dart \
 ///        --dart-define=STRIPE_PUBLISHABLE_KEY=pk_test_xxx
@@ -16,6 +16,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -42,6 +43,9 @@ Future<void> main() async {
   FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
   FirebaseFunctions.instanceFor(region: functionsRegion)
       .useFunctionsEmulator('localhost', 5001);
+  // Storage も向けないと、出品時の画像アップロード(putData)だけが本番へ飛んで
+  // 失敗する（MarketManager.registerProduct が false を返し「出品に失敗しました」）。
+  FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
 
   // エミュレータ限定: 匿名ログインで request.auth.uid を確保する。
   await FirebaseAuth.instance.signInAnonymously();
