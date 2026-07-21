@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-// ⚠️ 実際のプロジェクトのフォルダ構成に合わせてパスを調整してください
 import 'package:student_information_1/C1/auth/authentication_controller.dart';
 import 'package:student_information_1/C2/auth/account_creation_service.dart';
 import 'package:student_information_1/C2/auth/login_service.dart';

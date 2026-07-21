@@ -139,7 +139,6 @@ class AuthenticationController {
 
   Future<void> resendEmail() async {
     try {
-      // Service層へ処理を委譲
       await _accountCreationService.resendVerificationEmail();
     } on TooManyRequestsException {
       throw Exception('メール送信回数が上限に達しました。しばらく待ってから再度お試しください');
