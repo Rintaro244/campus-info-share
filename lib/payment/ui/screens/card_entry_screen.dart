@@ -52,7 +52,14 @@ class _CardEntryScreenState extends ConsumerState<CardEntryScreen> {
     // 注: Web ではタブを閉じる/リロードすると dispose 自体が走らない。
     //   その取りこぼしはクライアントでは解消できず、サーバ側の pending 自動解放
     //   （firestore.rules の TODO 参照）が恒久解となる。
-    if (!_paymentAuthorized && !_lockReleased) {
+    //
+    // _processing 中（オーソリ通信の最中）も解放しない。ここで解放すると item が
+    // on_sale へ戻り、その隙に出品者が出品を取り消せてしまう。直後にオーソリが
+    // 成立すると「決済成功したのに item が無い」状態になり、Webhook 側は
+    // fulfillOrderCore が item_not_found / refundNeeded を返して確定できない
+    // （返金処理は未実装）。オーソリ結果が不明な間はロックを保持する方が安全で、
+    // 残ったロックはサーバ側の自動解放で回収する。
+    if (!_paymentAuthorized && !_lockReleased && !_processing) {
       _lockReleased = true;
       _itemRepository
           .unlockItem(listingId: widget.args.listingId)

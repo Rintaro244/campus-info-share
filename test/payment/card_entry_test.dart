@@ -288,6 +288,40 @@ void main() {
     expect(repo.unlockCalls, 0);
   });
 
+  testWidgets('⑧ 決済処理中に離脱してもロックを解放しない（オーソリ結果が不明なため）',
+      (tester) async {
+    final gate = Completer<void>();
+    final client = FakeCardPaymentClient(gate: gate);
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildAppWithPush(
+        client: client,
+        navigator: RecordingNavigator(),
+        itemRepository: repo,
+      ),
+    );
+    await _pushCardEntry(tester);
+
+    // 「支払う」→ gate 待ちでオーソリ通信中に留まる。
+    await tester.tap(find.widgetWithText(FilledButton, '支払う'));
+    await tester.pump();
+    expect(client.confirmCalls, 1);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    // 処理中に AppBar の戻るで離脱（ボタンは無効でも戻るは押せる）。
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // ここで解放すると item が on_sale に戻り、出品者が取り消せてしまう。
+    // 直後にオーソリが成立すると「決済成功したのに item が無い」状態になる。
+    expect(repo.unlockCalls, 0);
+
+    // 離脱後にオーソリが成立しても、解放は起きないままであること。
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(repo.unlockCalls, 0);
+  });
+
   testWidgets('⑦ 決済失敗後に離脱してもロック解放は1回だけ（二重解放しない）', (tester) async {
     final client = FakeCardPaymentClient(
       failWith: const C4Exception(402, 'カードが拒否されました。'),
