@@ -76,8 +76,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (!context.mounted) return;
 
                   if (result == 1) {
-                    // 完全ログイン成功
-                    Navigator.pushReplacementNamed(context, '/home');
+                    // 完全ログイン成功。/login をスタックから消してホームへ
+                    // （戻る矢印でログイン画面に戻れてしまう問題を防ぐ）
+                    Navigator.pushNamedAndRemoveUntil(
+                        context, '/home', (route) => false);
                   } else if (result == 2) {
                     // 登録済みユーザー：OTP入力画面へ
                     Navigator.pushNamed(context, '/otp');

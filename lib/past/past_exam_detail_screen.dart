@@ -9,7 +9,7 @@ import 'past_exam_screen.dart';
 class PastExamDetailScreen extends ConsumerWidget {
   final PastExam exam;
 
-  const PastExamDetailScreen({Key? key, required this.exam}) : super(key: key);
+  const PastExamDetailScreen({super.key, required this.exam});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -28,8 +28,10 @@ class OtpScreen extends StatelessWidget {
                 try{
                   await _controller.submitOtp(_otpController.text);
                   if (!context.mounted) return;
-                  // 認証成功でホーム画面へ
-                  Navigator.pushReplacementNamed(context, '/home');
+                  // 認証成功でホーム画面へ。/login をスタックから消す
+                  // （戻る矢印でログイン画面に戻れてしまう問題を防ぐ）
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/home', (route) => false);
                 } catch (e) {
                   if (!context.mounted) return;
                   //エラー表示が順番待ちにならないように前のものを消す
