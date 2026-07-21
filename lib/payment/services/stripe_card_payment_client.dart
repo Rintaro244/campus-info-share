@@ -44,8 +44,18 @@ class StripeCardPaymentClient implements CardPaymentClient {
         500,
         'カード決済が初期化されていません。STRIPE_PUBLISHABLE_KEY を指定して起動してください。',
       );
+    } on StripeError catch (e) {
+      // Web(flutter_stripe_web) はカード拒否等で StripeError を投げる
+      // （web_stripe.dart の confirmPayment）。StripeException とは別クラスで、
+      // Stripe.instance も `on StripeError { rethrow; }` で変換せず素通しするため、
+      // 個別に捕まえないと下の総取り catch に落ちて 502 になる。
+      throw C4Exception(
+        402,
+        e.message.isNotEmpty ? e.message : 'カード決済に失敗しました。',
+      );
     } on StripeException catch (e) {
-      // カード拒否・入力不備・ユーザキャンセル等。402 で画面にエラー表示させる。
+      // ネイティブ(iOS/Android)はこちら。カード拒否・入力不備・ユーザキャンセル等。
+      // 将来のスマホ展開に備えて残す（Web では発生しない）。
       throw C4Exception(
         402,
         e.error.localizedMessage ?? e.error.message ?? 'カード決済に失敗しました。',
