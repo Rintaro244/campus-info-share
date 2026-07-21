@@ -24,7 +24,6 @@ class _PastExamListScreenState extends ConsumerState<PastExamListScreen> {
   }
 
   void onExamTap(PastExam exam) {
-    // 💡 詳細画面へ遷移するように修正済み
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => PastExamDetailScreen(exam: exam),
@@ -62,7 +61,7 @@ class _PastExamListScreenState extends ConsumerState<PastExamListScreen> {
                     controller: _searchController,
                     onChanged: (value) => ref.read(pastExamControllerProvider).updateSearchQuery(value),
                     decoration: InputDecoration(
-                      hintText: '例: 基礎数学、田中教授、期末試験',
+                      hintText: '例: 基礎数学、佐藤教授、期末試験',
                       prefixIcon: const Icon(Icons.search, color: Colors.grey),
                       suffixIcon: controller.searchQuery.isNotEmpty
                           ? IconButton(
