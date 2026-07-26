@@ -197,9 +197,9 @@ class _SpotPostScreenState extends State<SpotPostScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // レスポンシブ対応（要求仕様書7章）：タブレット/PCでは入力フォームの幅を中央寄せで制限
+    // 常に1カラム（縦一列）。PC/タブレット幅では中央寄せで読みやすい幅に収める（余白は許容）。
     final width = MediaQuery.sizeOf(context).width;
-    final maxContentWidth = width >= 600 ? 600.0 : double.infinity;
+    final maxContentWidth = width >= 600 ? 700.0 : double.infinity;
 
     return Scaffold(
       appBar: AppBar(title: const Text('おすすめスポット投稿')),
