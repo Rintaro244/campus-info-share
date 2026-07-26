@@ -1,4 +1,3 @@
-//import 'package:flutter/material.dart';
 import 'package:student_information_1/shared/auth_exceptions.dart';
 import 'package:student_information_1/C5/auth/auth_repository.dart';
 
@@ -77,7 +76,6 @@ class AccountCreationService{
       throw Exception(e.toString());
     }
   }
-
 
   //芝浦工業大学のドメインならtrue, そうでないならfalseを返す
   bool validateDomain(String emailAddress){

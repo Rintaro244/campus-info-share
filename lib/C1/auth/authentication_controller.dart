@@ -3,7 +3,6 @@ import 'package:student_information_1/C2/auth/login_service.dart';
 import 'package:student_information_1/C2/auth/logout_service.dart';
 import 'package:student_information_1/C2/auth/mfa_setup_service.dart';
 import 'package:student_information_1/shared/auth_exceptions.dart';
-//import 'dart:async';
 
 class AuthenticationController {
   final AccountCreationService _accountCreationService;
