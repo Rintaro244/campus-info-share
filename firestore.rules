@@ -54,8 +54,6 @@ service cloud.firestore {
 
       // アンロック(ロールバック): pending -> on_sale、ロック保持者本人が buyerId をクリア
       // buyerId は「未設定 -> 自分」「自分 -> クリア」の2操作のみ。他人の値へは変更不可。
-      // TODO(将来): アプリ強制終了等で unlock されない放置ロックは client では解消不能。
-      //   TTL or 定期 Cloud Function で pending の自動解放を別途実装する（今回スコープ外）。
       function isUnlock() {
         return resource.data.status == 'pending'
             && request.resource.data.status == 'on_sale'

@@ -50,8 +50,8 @@ class _CardEntryScreenState extends ConsumerState<CardEntryScreen> {
     // dispose は同期メソッドで await できないため fire-and-forget で投げる。
     // 画面が既に無く通知先もないので失敗は握りつぶす。
     // 注: Web ではタブを閉じる/リロードすると dispose 自体が走らない。
-    //   その取りこぼしはクライアントでは解消できず、サーバ側の pending 自動解放
-    //   （firestore.rules の TODO 参照）が恒久解となる。
+    //   その取りこぼしはクライアントでは解消できず、サーバ側の pending 自動解放が
+    //   恒久解となる。
     //
     // _processing 中（オーソリ通信の最中）も解放しない。ここで解放すると item が
     // on_sale へ戻り、その隙に出品者が出品を取り消せてしまう。直後にオーソリが
@@ -105,7 +105,7 @@ class _CardEntryScreenState extends ConsumerState<CardEntryScreen> {
     }
   }
 
-  /// 決済失敗時の在庫ロック解放。解放自体の失敗は致命的でないため握りつぶす（要監視）。
+  /// 決済失敗時の在庫ロック解放。解放自体の失敗は致命的でないため握りつぶす。
   /// 解放済みを記録し、この後に離脱しても dispose 側で二重に解放しないようにする。
   Future<void> _releaseLock(
     ItemRepository itemRepository,
