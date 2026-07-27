@@ -64,6 +64,9 @@ functions/.secret*.local
 # Firebase deploy キャッシュ（自動生成・コミット不要）
 .firebase/
 
+# エミュレータの export データ（--export-on-exit 等で生成。ローカル検証用・コミット不要）
+emulator-data/
+
 # Secret / key files
 **/secrets.dart
 **/api_keys.dart
