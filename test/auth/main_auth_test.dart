@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:student_information_1/firebase_options.dart';
 
 // あなたの作成した画面をインポート
-import 'package:student_information_1/C1/login_screen.dart';
-import 'package:student_information_1/C1/mfa_setup_screen.dart';
-import 'package:student_information_1/C1/otp_screen.dart';
-import 'package:student_information_1/C1/registration_screen.dart';
-import 'package:student_information_1/C1/email_verification_screen.dart';
-import 'package:student_information_1/C1/registration_success_screen.dart';
+import 'package:student_information_1/C1/auth/login_screen.dart';
+import 'package:student_information_1/C1/auth/mfa_setup_screen.dart';
+import 'package:student_information_1/C1/auth/otp_screen.dart';
+import 'package:student_information_1/C1/auth/registration_screen.dart';
+import 'package:student_information_1/C1/auth/email_verification_screen.dart';
+import 'package:student_information_1/C1/auth/registration_success_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

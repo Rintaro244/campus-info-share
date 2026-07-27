@@ -4,11 +4,10 @@ import 'package:student_information_1/past/past_exam_repository.dart'; // ðŸ’¡ é
 import 'profile_edit_screen.dart'; 
 import '../C3/circle_manager.dart'; 
 import '../C3/market_manager.dart'; 
-import '../C3/lecture_manager.dart';
+//import '../C3/lecture_manager.dart';
 import 'package:student_information_1/C1/auth/authentication_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:student_information_1/C1/auth/authentication_controller.dart';
 import '../services/spot_service.dart';
 
 class ProfileScreen extends StatefulWidget {

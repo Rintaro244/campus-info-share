@@ -1,4 +1,3 @@
-//import 'package:flutter/material.dart';
 import 'package:student_information_1/shared/auth_exceptions.dart';
 import 'package:student_information_1/C5/auth/auth_repository.dart';
 
@@ -17,9 +16,6 @@ class AccountCreationService{
     if(!validateDomain(emailAddress)){
       throw InvalidDomainException();
     }
-    /*if(!validatePassword(password, passwordConfirm)){
-      throw PasswordMismatchException();
-    }*/
 
     try{
       //仮認証および確認メール送信依頼
@@ -42,10 +38,7 @@ class AccountCreationService{
     try {
       //認証済みか確認依頼
       await _authRepository.checkEmailVerification();
-
-      //final uid = _authRepository.currentUid;
-      //final email = _authRepository.getCurrentUid;
-
+      
     } on InvalidUserSessionException {
       rethrow;
     } on EmailNotVerifiedException {
@@ -84,15 +77,10 @@ class AccountCreationService{
     }
   }
 
-
   //芝浦工業大学のドメインならtrue, そうでないならfalseを返す
   bool validateDomain(String emailAddress){
     final domain = ['@shibaura-it.ac.jp', '@sic.shibaura-it.ac.jp'];
     return domain.any((domain) => emailAddress.endsWith(domain));
   }
-  //パスワードが一致していればtrue, そうでないならfalseを返す
-  /*bool validatePassword(String password, String passwordConfirm){
-    return password == passwordConfirm;
-  }*/
     
 }

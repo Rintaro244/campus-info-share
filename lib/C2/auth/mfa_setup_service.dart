@@ -25,9 +25,6 @@ class MfaSetupService {
   }
 
   Future<void> finalizeMfaEnrollment(String otpCode) async {
-    /*if (!validateOtpInput(otpCode)) {
-      throw InvalidOtpException();
-    }*/
 
     try {
       //MFA登録完了処理依頼
@@ -42,9 +39,4 @@ class MfaSetupService {
       throw Exception(e.toString());
     }
   }
-
-  /*bool validateOtpInput(String otpCode) {
-    final regExp = RegExp(r'^\d{6}$');
-    return regExp.hasMatch(otpCode);
-  }*/
 }

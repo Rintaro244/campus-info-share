@@ -33,21 +33,20 @@ class _LoginScreenState extends State<LoginScreen> {
               obscureText: _isPasswordObscure,
               decoration: InputDecoration(
                 labelText: 'パスワード',
-                // 👇 IconButtonの代わりにGestureDetectorを使う
                 suffixIcon: GestureDetector(
-                  // ① ボタンを「押し込んだ」瞬間にパスワードを表示
+                  // ボタンを「押し込んだ」瞬間にパスワードを表示
                   onTapDown: (_) {
                     setState(() {
                       _isPasswordObscure = false;
                     });
                   },
-                  // ② ボタンから「指を離した」瞬間にパスワードを隠す
+                  // ボタンから「指を離した」瞬間にパスワードを隠す
                   onTapUp: (_) {
                     setState(() {
                       _isPasswordObscure = true;
                     });
                   },
-                  // ③ ボタンを押したまま指を画面外に「ずらして離した」時も隠す（安全対策）
+                  // ボタンを押したまま指を画面外に「ずらして離した」時も隠す
                   onTapCancel: () {
                     setState(() {
                       _isPasswordObscure = true;
