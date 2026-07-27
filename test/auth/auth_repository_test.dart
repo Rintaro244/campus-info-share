@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:student_information_1/C5/auth/auth_repository.dart';
 import 'package:student_information_1/shared/auth_exceptions.dart';
+import 'package:flutter/foundation.dart';
 
 // =======================================================
 // 1. Mockクラスの定義
@@ -22,7 +23,6 @@ void main() {
 
   const email = 'test@shibaura-it.ac.jp';
   const password = 'password123';
-  const otpCode = '123456';
 
   setUp(() {
     mockFirebaseAuth = MockFirebaseAuth();
@@ -532,5 +532,5 @@ void main() {
     
   });
 
-  print('※一部のstaticメソッドはモックを作れないのでテストケース実行できず、カバー率が100%になりません');
+  debugPrint('※一部のstaticメソッドはモックを作れないのでテストケース実行できず、カバー率が100%になりません');
 }

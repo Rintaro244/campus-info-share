@@ -16,7 +16,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   // タイマーを管理する変数（破棄できるようにここに定義する）
   Timer? _timer;
   int _tickCount = 0;
-  final int _maxTicks = 200; //3秒ごとのTickが200回呼び出されたらタイムアウト
+  final int _maxTicks = 100; //3秒ごとのTickが100回呼び出されたらタイムアウト
 
   Timer? _resendTimer;
   int _resendCountdown = 0; // 0のときはボタンを押せる
@@ -37,7 +37,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       });
     });
 
-    // 1. 画面が表示されたら、3秒ごとに実行するタイマーを開始
+    // 画面が表示されたらタイマー開始
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) async {
       ++_tickCount;
 
@@ -47,7 +47,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         try{
           await _controller.deleteCurrentTemporaryAccount();
         } catch (e) {
-          print(e);
+          debugPrint(e.toString());
         }
 
         if (!mounted) return;
@@ -58,17 +58,16 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       }
       
       try {
-        // 2. コントローラー経由でC2➔C5➔Firebaseへ認証が完了したか確認
+        // コントローラー経由でC2➔C5➔Firebaseへ認証が完了したか確認
         final isVerified = await _controller.checkEmailVerified();
         
         if (isVerified) {
-          // 3. 認証が完了していたら、まずタイマーを止める（二度と動かないようにする）
+          // 認証が完了していたら、まずタイマーを止める
           _timer?.cancel();
           
-          // 4. 画面がすでに閉じられていないか安全確認（Flutterの決まり文句）
           if (!mounted) return;
           
-          // 5. 登録完了画面（またはホーム画面）へ遷移
+          // 登録完了画面へ遷移
           Navigator.pushReplacementNamed(context, '/registration-success');
         }
       } catch (e) {
@@ -87,7 +86,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     });
   }
 
-  // 💡【追加】メール再送ボタンが押された時の処理
+  // メール再送ボタンが押された時の処理
   Future<void> _handleResendEmail() async {
     if (_resendCountdown > 0 || _isResending) return;
 
@@ -96,8 +95,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     });
 
     try {
-      // 💡 Controller側に resendEmail() メソッドを作って呼び出す
-      // 内部では _authRepository.resendVerificationEmail() を叩く
       await _controller.resendEmail(); 
       
       if (!mounted) return;
@@ -105,7 +102,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         const SnackBar(content: Text('確認メールを再送信しました')),
       );
 
-      // 💡 60秒のカウントダウンタイマーを開始
+      // 再送タイマーを開始
       setState(() {
         _resendCountdown = 60;
         _isResending = false;
@@ -131,7 +128,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
   @override
   void dispose() {
-    // 6. 重要：画面が消えるときは必ずタイマーを止める（メモリリーク・裏での通信暴走を防ぐ）
     _timer?.cancel();
     _resendTimer?.cancel();
     super.dispose();
@@ -166,7 +162,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               
               const SizedBox(height: 32),
               
-              // 💡【追加】再送ボタン
               ElevatedButton(
                 onPressed: _resendCountdown > 0 ? null : _handleResendEmail,
                 child: Text(

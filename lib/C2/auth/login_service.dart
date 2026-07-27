@@ -57,11 +57,4 @@ class LoginService{
       throw Exception(e.toString());
     }
   }
-
-  /*bool validateLoginInput(String emailAddress, String password) {
-    if (emailAddress.isEmpty || password.isEmpty) {
-      return false;
-    }
-    return true;
-  }*/
 }

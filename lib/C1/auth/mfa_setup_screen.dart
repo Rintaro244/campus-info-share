@@ -80,7 +80,10 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
                 try {
                   await _controller.completeMfaEnrollment(_otpController.text);
                   if (!context.mounted) return;
-                  Navigator.pushReplacementNamed(context, '/home');
+                  // /login をスタックから消してホームへ
+                  // （戻る矢印でログイン画面に戻れてしまう問題を防ぐ）
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/home', (route) => false);
                 } catch (e) {
                   if (!context.mounted) return;
                   //エラー表示が順番待ちにならないように前のものを消す

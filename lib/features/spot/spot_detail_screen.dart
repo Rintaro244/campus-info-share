@@ -137,65 +137,57 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
       );
     }
 
-    // レスポンシブ対応（要求仕様書7章）：タブレット/PCではコンテンツ幅を中央寄せで制限
+    // レイアウトは常に1カラム（コメントは一番下）。ワイド幅では横幅いっぱいを使い、
+    // 地図・入力欄・見出しのサイズも大きめに調整して比率が崩れないようにする。
     final width = MediaQuery.sizeOf(context).width;
-    final maxContentWidth = width >= 600 ? 600.0 : double.infinity;
+    final isWide = width >= 900;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(_spot.spotName),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.favorite_border),
-            onPressed: () {},
-          ),
-        ],
+        
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxContentWidth),
-                child: ListView(
-                  children: [
-                    _buildImageCarousel(),
-                    _buildInfoCard(),
-                    _buildAccessSection(),
-                    const Divider(height: 1),
-                    _buildCommentsSection(),
-                    const SizedBox(height: 8),
-                  ],
+      // 詳細は"読む"画面なので中央寄せの1カラム（約900px）。全幅にせず散らばりを防ぐ。
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: SizedBox.expand(
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    children: [
+                      _buildImageCarousel(),
+                      _buildInfoCard(),
+                      _buildAccessSection(isWide),
+                      const Divider(height: 1),
+                      _buildCommentsSection(isWide),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
                 ),
-              ),
+                _buildCommentInputBar(isWide),
+              ],
             ),
           ),
-          Align(
-            alignment: Alignment.center,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxContentWidth),
-              child: _buildCommentInputBar(),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildImageCarousel() {
     final urls = _spot.imageUrls;
+    // 中央寄せ(約900px)の列幅いっぱいに16:9で表示。containで見切れ防止。
     if (urls.isEmpty) {
       return AspectRatio(
         aspectRatio: 16 / 9,
         child: Container(
           color: Colors.grey[200],
           child: const Center(
-              child: Icon(Icons.place, size: 56, color: Colors.grey)),
+              child: Icon(Icons.place, size: 64, color: Colors.grey)),
         ),
       );
     }
-    // 画面幅に追従する16:9の領域に、BoxFit.containで画像全体を収める（見切れ防止）
     return AspectRatio(
       aspectRatio: 16 / 9,
       child: Container(
@@ -225,12 +217,46 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              spot.spotName,
-              style: const TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.bold),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            // タイトルと平均星評価を同じ行にまとめて見出しにする（分散を防ぐ）
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    spot.spotName,
+                    style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.bold),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star, size: 20, color: Colors.amber),
+                      const SizedBox(width: 4),
+                      Text(
+                        spot.averageRating != null
+                            ? spot.averageRating!.toStringAsFixed(1)
+                            : '-',
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        spot.reviewCount != null
+                            ? '(${spot.reviewCount}件)'
+                            : '',
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             if (spot.tags.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -252,48 +278,29 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
                 ],
               ),
             ],
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.star, size: 16, color: Colors.amber),
-                const SizedBox(width: 4),
-                Text(
-                  spot.averageRating != null
-                      ? spot.averageRating!.toStringAsFixed(1)
-                      : '-',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  spot.reviewCount != null
-                      ? '(${spot.reviewCount}件)'
-                      : '',
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
-                ),
-              ],
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAccessSection() {
+  Widget _buildAccessSection(bool isWide) {
     final lat = _spot.latitude;
     final lng = _spot.longitude;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.location_pin, size: 16, color: Colors.red),
-              const SizedBox(width: 4),
-              const Text('アクセス',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              const Spacer(),
+              Icon(Icons.location_pin, size: isWide ? 20 : 16, color: Colors.red),
+              const SizedBox(width: 6),
+              Text('アクセス',
+                  style: TextStyle(
+                      fontSize: isWide ? 18 : 16, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 8),
               if (lat != null && lng != null)
                 TextButton(
                   onPressed: _openInMaps,
@@ -304,7 +311,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
           const SizedBox(height: 6),
           SizedBox(
             width: double.infinity,
-            height: 80,
+            height: isWide ? 300 : 170,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: lat != null && lng != null
@@ -338,17 +345,17 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
     );
   }
 
-  Widget _buildCommentsSection() {
+  Widget _buildCommentsSection(bool isWide) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text('コメント',
                 style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold)),
+                    fontSize: isWide ? 20 : 16, fontWeight: FontWeight.bold)),
           ),
           if (_isLoadingReviews)
             const Center(child: CircularProgressIndicator())
@@ -381,14 +388,14 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
     );
   }
 
-  Widget _buildCommentInputBar() {
+  Widget _buildCommentInputBar(bool isWide) {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(
             top: BorderSide(color: Colors.grey.shade300)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: isWide ? 12 : 8),
       child: SafeArea(
         top: false,
         child: Row(
@@ -402,7 +409,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
                   onTap: () => setState(() => _selectedStars = star),
                   child: Icon(
                     star <= _selectedStars ? Icons.star : Icons.star_border,
-                    size: 20,
+                    size: isWide ? 28 : 22,
                     color: Colors.amber,
                   ),
                 );
@@ -411,15 +418,16 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: SizedBox(
-                height: 32,
+                height: isWide ? 48 : 38,
                 child: TextField(
                   controller: _commentController,
+                  style: TextStyle(fontSize: isWide ? 15 : 14),
                   decoration: const InputDecoration(
                     hintText: 'コメントを入力… *',
                     border: OutlineInputBorder(),
                     isDense: true,
                     contentPadding:
-                        EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
                   maxLength: 512,
                   maxLines: 1,
@@ -428,11 +436,11 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            // 送信ボタン（直径32px）
+            const SizedBox(width: 8),
+            // 送信ボタン
             SizedBox(
-              width: 32,
-              height: 32,
+              width: isWide ? 44 : 34,
+              height: isWide ? 44 : 34,
               child: FloatingActionButton(
                 heroTag: 'send',
                 mini: true,
@@ -447,7 +455,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white),
                       )
-                    : const Icon(Icons.arrow_forward, size: 16),
+                    : Icon(Icons.arrow_forward, size: isWide ? 20 : 16),
               ),
             ),
           ],
