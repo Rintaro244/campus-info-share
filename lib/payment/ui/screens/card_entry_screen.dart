@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:student_information_1/payment/models/transaction_models.dart';
 import 'package:student_information_1/payment/providers.dart';
+import 'package:student_information_1/payment/services/c5_interfaces.dart';
 import 'package:student_information_1/payment/ui/flutter_payment_navigator.dart';
 
 class CardEntryScreen extends ConsumerStatefulWidget {
@@ -27,33 +28,94 @@ class _CardEntryScreenState extends ConsumerState<CardEntryScreen> {
   /// 決済処理中フラグ。二重送信防止とローディング表示に使う。
   bool _processing = false;
 
+  /// オーソリ成立済みフラグ。成立後は取引確定を Webhook が行うため、
+  /// 離脱時に在庫ロックを解放してはいけない（成立済みの購入を on_sale へ戻さない）。
+  bool _paymentAuthorized = false;
+
+  /// 解放済みフラグ。決済失敗時の解放と dispose 時の解放が二重に走るのを防ぐ。
+  bool _lockReleased = false;
+
+  /// dispose 後は ref を使えないため、リポジトリは初期化時に握っておく。
+  late final ItemRepository _itemRepository;
+
+  @override
+  void initState() {
+    super.initState();
+    _itemRepository = ref.read(itemRepositoryProvider);
+  }
+
+  @override
+  void dispose() {
+    // 決済を試みずに離脱した場合（戻る・popUntil 等）に在庫ロックを解放する。
+    // dispose は同期メソッドで await できないため fire-and-forget で投げる。
+    // 画面が既に無く通知先もないので失敗は握りつぶす。
+    // 注: Web ではタブを閉じる/リロードすると dispose 自体が走らない。
+    //   その取りこぼしはクライアントでは解消できず、サーバ側の pending 自動解放が
+    //   恒久解となる。
+    //
+    // _processing 中（オーソリ通信の最中）も解放しない。ここで解放すると item が
+    // on_sale へ戻り、その隙に出品者が出品を取り消せてしまう。直後にオーソリが
+    // 成立すると「決済成功したのに item が無い」状態になり、Webhook 側は
+    // fulfillOrderCore が item_not_found / refundNeeded を返して確定できない
+    // （返金処理は未実装）。オーソリ結果が不明な間はロックを保持する方が安全で、
+    // 残ったロックはサーバ側の自動解放で回収する。
+    if (!_paymentAuthorized && !_lockReleased && !_processing) {
+      _lockReleased = true;
+      _itemRepository
+          .unlockItem(listingId: widget.args.listingId)
+          .catchError((Object _) => 'unlock-failed-on-dispose');
+    }
+    super.dispose();
+  }
+
   Future<void> _onPay() async {
     if (_processing) return; // 二重送信防止（処理中の連打を無視）。
     setState(() => _processing = true);
 
     final args = widget.args;
+    // ref は await 後に画面が破棄されていると使えないため、事前に取得しておく。
+    final cardClient = ref.read(cardPaymentClientProvider);
+    final navigator = ref.read(paymentNavigatorProvider);
+    final itemRepository = ref.read(itemRepositoryProvider);
     try {
-      await ref
-          .read(cardPaymentClientProvider)
-          .confirmPayment(clientSecret: args.clientSecret);
+      await cardClient.confirmPayment(clientSecret: args.clientSecret);
+      // オーソリ成立。以降は dispose でロックを解放してはいけないため、
+      // mounted チェックより先にフラグを立てる（離脱と成功の競合対策）。
+      _paymentAuthorized = true;
       if (!mounted) return;
       // オーソリ OK。取引確定（items.status=sold / transactions.status=paid）は
       // Webhook が非同期に行うため、ここでは完了画面へ進むだけ。fulfill は呼ばない。
       // 有償フローの transactionId は paymentIntentId（webhook が transactions/{pi} を作る）。
-      ref.read(paymentNavigatorProvider).goToPurchaseComplete(
-            listingId: args.listingId,
-            transactionId: args.paymentIntentId,
-          );
+      navigator.goToPurchaseComplete(
+        listingId: args.listingId,
+        transactionId: args.paymentIntentId,
+      );
     } on C4Exception catch (e) {
+      // 決済失敗: M2 が掛けた在庫ロック(pending)を解放し on_sale へ戻す（再購入可能にする）。
+      // オーソリ未成立での失敗のため、ここで解放してよい（成立時はこの分岐に入らない）。
+      await _releaseLock(itemRepository, args.listingId);
       if (!mounted) return;
-      ref.read(paymentNavigatorProvider).showError(code: e.code, message: e.message);
+      navigator.showError(code: e.code, message: e.message);
       setState(() => _processing = false); // 同じ画面で再試行できるよう再活性。
     } catch (e) {
+      await _releaseLock(itemRepository, args.listingId);
       if (!mounted) return;
-      ref
-          .read(paymentNavigatorProvider)
-          .showError(code: 502, message: '決済処理に失敗しました。');
+      navigator.showError(code: 502, message: '決済処理に失敗しました。');
       setState(() => _processing = false);
+    }
+  }
+
+  /// 決済失敗時の在庫ロック解放。解放自体の失敗は致命的でないため握りつぶす。
+  /// 解放済みを記録し、この後に離脱しても dispose 側で二重に解放しないようにする。
+  Future<void> _releaseLock(
+    ItemRepository itemRepository,
+    String listingId,
+  ) async {
+    _lockReleased = true;
+    try {
+      await itemRepository.unlockItem(listingId: listingId);
+    } catch (_) {
+      // 解放に失敗すると pending が残るが、決済フロー自体は失敗として扱う。
     }
   }
 

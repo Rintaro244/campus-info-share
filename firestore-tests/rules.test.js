@@ -117,6 +117,17 @@ describe('items Security Rules', () => {
     );
   });
 
+  test('⑥-b 出品者本人による自分の商品のロックは拒否', async () => {
+    // sellerId == ロックしようとする本人（BUYER）。本人購入は禁止。
+    await seed(LISTING, { price: 1000, status: 'on_sale', sellerId: BUYER });
+    await assertFails(
+      authed(BUYER).collection('items').doc(LISTING).update({
+        status: 'pending',
+        buyerId: BUYER,
+      }),
+    );
+  });
+
   test('⑦ ロック保持者本人の unlock は許可', async () => {
     await seed(LISTING, pendingItem);
     await assertSucceeds(

@@ -64,6 +64,9 @@ functions/.secret*.local
 # Firebase deploy キャッシュ（自動生成・コミット不要）
 .firebase/
 
+# エミュレータの export データ（--export-on-exit 等で生成。ローカル検証用・コミット不要）
+emulator-data/
+
 # Secret / key files
 **/secrets.dart
 **/api_keys.dart
@@ -75,3 +78,10 @@ claude_code_instruction_*.md
 
 # Windows / WSL Zone.Identifier artifacts
 *:Zone.Identifier
+
+# 作業用バックアップ（ドキュメント編集時の退避ファイル）
+*.bak_*
+
+# 照合用の設計書・仕様書（.docx）。手元で参照するだけの資料でコミット対象外。
+# 1ファイル数MBあり、リポジトリを不必要に肥大させるため除外する。
+*.docx

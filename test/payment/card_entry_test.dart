@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:student_information_1/payment/models/transaction_models.dart';
 import 'package:student_information_1/payment/providers.dart';
+import 'package:student_information_1/payment/services/c5_interfaces.dart';
 import 'package:student_information_1/payment/services/card_payment_client.dart';
 import 'package:student_information_1/payment/ui/flutter_payment_navigator.dart';
 import 'package:student_information_1/payment/ui/payment_flow_navigation.dart';
@@ -34,6 +35,26 @@ class FakeCardPaymentClient implements CardPaymentClient {
     if (g != null) await g.future;
     final e = failWith;
     if (e != null) throw e;
+  }
+}
+
+/// 在庫ロック解放の記録用 Fake。決済失敗時に unlockItem が呼ばれるか検証する。
+class FakeItemRepository implements ItemRepository {
+  int unlockCalls = 0;
+
+  @override
+  Future<LockResult> lockItemForPurchase({
+    required String listingId,
+    required String buyerId,
+  }) {
+    // カード入力画面ではロックは上流(M2)で完了済みのため呼ばれない。
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String> unlockItem({required String listingId}) async {
+    unlockCalls++;
+    return 'unlocked';
   }
 }
 
@@ -80,14 +101,58 @@ const _args = CardEntryArgs(
 Widget _buildApp({
   required CardPaymentClient client,
   required PaymentNavigator navigator,
+  ItemRepository? itemRepository,
 }) {
   return ProviderScope(
     overrides: [
       cardPaymentClientProvider.overrideWithValue(client),
       paymentNavigatorProvider.overrideWithValue(navigator),
+      // 既定の FirestoreItemRepository は Firebase 初期化を要するため必ず Fake に差し替える。
+      itemRepositoryProvider.overrideWithValue(
+        itemRepository ?? FakeItemRepository(),
+      ),
     ],
     child: const MaterialApp(home: CardEntryScreen(args: _args)),
   );
+}
+
+/// 離脱（pop）を伴うテスト用。前画面から push して CardEntryScreen を開く構成にする。
+/// `home:` 直置きだと戻るボタンが無く pageBack できないため、こちらを使う。
+Widget _buildAppWithPush({
+  required CardPaymentClient client,
+  required PaymentNavigator navigator,
+  ItemRepository? itemRepository,
+}) {
+  return ProviderScope(
+    overrides: [
+      cardPaymentClientProvider.overrideWithValue(client),
+      paymentNavigatorProvider.overrideWithValue(navigator),
+      itemRepositoryProvider.overrideWithValue(
+        itemRepository ?? FakeItemRepository(),
+      ),
+    ],
+    child: MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: ElevatedButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const CardEntryScreen(args: _args),
+              ),
+            ),
+            child: const Text('カード入力へ'),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// 前画面から CardEntryScreen へ遷移する。
+Future<void> _pushCardEntry(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(ElevatedButton, 'カード入力へ'));
+  await tester.pumpAndSettle();
+  expect(find.text('お支払い金額: ¥1500'), findsOneWidget);
 }
 
 void main() {
@@ -106,7 +171,10 @@ void main() {
       (tester) async {
     final client = FakeCardPaymentClient();
     final nav = RecordingNavigator();
-    await tester.pumpWidget(_buildApp(client: client, navigator: nav));
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildApp(client: client, navigator: nav, itemRepository: repo),
+    );
 
     await tester.tap(find.widgetWithText(FilledButton, '支払う'));
     // 成功パスは _processing=true のまま遷移する（実アプリでは新画面へ push される）。
@@ -121,6 +189,8 @@ void main() {
     // 有償フローの transactionId は paymentIntentId（webhook が transactions/{pi} を作る）。
     expect(nav.completeTransactionId, 'pi_test_123');
     expect(nav.errorCode, isNull);
+    // 成功時はロックを解放しない（sold 化は Webhook が行う）。
+    expect(repo.unlockCalls, 0);
   });
 
   testWidgets('③ 支払う→confirmPayment失敗→showError、遷移せずボタン再活性', (tester) async {
@@ -128,7 +198,10 @@ void main() {
       failWith: const C4Exception(402, 'カードが拒否されました。'),
     );
     final nav = RecordingNavigator();
-    await tester.pumpWidget(_buildApp(client: client, navigator: nav));
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildApp(client: client, navigator: nav, itemRepository: repo),
+    );
 
     await tester.tap(find.widgetWithText(FilledButton, '支払う'));
     await tester.pumpAndSettle();
@@ -137,6 +210,8 @@ void main() {
     expect(nav.goToCompleteCalls, 0); // 遷移していない
     expect(nav.errorCode, 402);
     expect(nav.errorMessage, 'カードが拒否されました。');
+    // 決済失敗時は在庫ロックを解放して on_sale に戻す（再購入可能にする）。
+    expect(repo.unlockCalls, 1);
 
     // 失敗後はボタンが再活性（同じ画面で再試行できる）。
     final button = tester.widget<FilledButton>(
@@ -169,5 +244,106 @@ void main() {
     await tester.pump();
     expect(client.confirmCalls, 1);
     expect(nav.goToCompleteCalls, 1);
+  });
+
+  testWidgets('⑤ 決済せず戻るボタンで離脱すると在庫ロックを解放する', (tester) async {
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildAppWithPush(
+        client: FakeCardPaymentClient(),
+        navigator: RecordingNavigator(),
+        itemRepository: repo,
+      ),
+    );
+    await _pushCardEntry(tester);
+    expect(repo.unlockCalls, 0); // 表示しただけでは解放しない
+
+    await tester.pageBack(); // AppBar の戻るボタン
+    await tester.pumpAndSettle();
+
+    // 決済を試みずに離脱 → pending を on_sale へ戻す。
+    expect(repo.unlockCalls, 1);
+  });
+
+  testWidgets('⑥ 決済成功後に画面を破棄してもロックを解放しない（sold 化は Webhook）',
+      (tester) async {
+    final client = FakeCardPaymentClient();
+    final nav = RecordingNavigator();
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildAppWithPush(client: client, navigator: nav, itemRepository: repo),
+    );
+    await _pushCardEntry(tester);
+
+    await tester.tap(find.widgetWithText(FilledButton, '支払う'));
+    // 成功パスは遷移せずスピナーが回り続けるため有限 pump で継続処理をフラッシュする。
+    await tester.pump();
+    await tester.pump();
+    expect(nav.goToCompleteCalls, 1);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // オーソリ成立済み。ここで解放すると成立済みの購入を on_sale へ戻してしまう。
+    expect(repo.unlockCalls, 0);
+  });
+
+  testWidgets('⑧ 決済処理中に離脱してもロックを解放しない（オーソリ結果が不明なため）',
+      (tester) async {
+    final gate = Completer<void>();
+    final client = FakeCardPaymentClient(gate: gate);
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildAppWithPush(
+        client: client,
+        navigator: RecordingNavigator(),
+        itemRepository: repo,
+      ),
+    );
+    await _pushCardEntry(tester);
+
+    // 「支払う」→ gate 待ちでオーソリ通信中に留まる。
+    await tester.tap(find.widgetWithText(FilledButton, '支払う'));
+    await tester.pump();
+    expect(client.confirmCalls, 1);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    // 処理中に AppBar の戻るで離脱（ボタンは無効でも戻るは押せる）。
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // ここで解放すると item が on_sale に戻り、出品者が取り消せてしまう。
+    // 直後にオーソリが成立すると「決済成功したのに item が無い」状態になる。
+    expect(repo.unlockCalls, 0);
+
+    // 離脱後にオーソリが成立しても、解放は起きないままであること。
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(repo.unlockCalls, 0);
+  });
+
+  testWidgets('⑦ 決済失敗後に離脱してもロック解放は1回だけ（二重解放しない）', (tester) async {
+    final client = FakeCardPaymentClient(
+      failWith: const C4Exception(402, 'カードが拒否されました。'),
+    );
+    final repo = FakeItemRepository();
+    await tester.pumpWidget(
+      _buildAppWithPush(
+        client: client,
+        navigator: RecordingNavigator(),
+        itemRepository: repo,
+      ),
+    );
+    await _pushCardEntry(tester);
+
+    await tester.tap(find.widgetWithText(FilledButton, '支払う'));
+    await tester.pumpAndSettle();
+    expect(repo.unlockCalls, 1); // 失敗時の解放
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // dispose 側は解放済みフラグを見て何もしない。
+    expect(repo.unlockCalls, 1);
   });
 }

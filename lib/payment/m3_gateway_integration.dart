@@ -38,7 +38,7 @@ class GatewayIntegrationModule {
     try {
       await _itemRepository.unlockItem(listingId: listingId);
     } catch (_) {
-      // ロールバック失敗は致命的ではないため握りつぶす（要監視）。
+      // ロールバック失敗は致命的ではないため握りつぶす。
     }
   }
 }

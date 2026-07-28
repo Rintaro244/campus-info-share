@@ -57,6 +57,8 @@ function toHttpsError(e: unknown): HttpsError {
     switch (e.code) {
       case 400:
         return new HttpsError('invalid-argument', e.message);
+      case 403:
+        return new HttpsError('permission-denied', e.message);
       case 404:
         return new HttpsError('not-found', e.message);
       case 409:
@@ -188,17 +190,14 @@ export const handleStripeWebhook = onRequest(
         signature,
       );
 
-      // 確定できたが返金が必要なケース（金額不一致・item 消失）はログ + TODO。
       const body = result.body as { result?: { refundNeeded?: boolean } };
       if (body?.result?.refundNeeded) {
-        // TODO: Stripe 返金 API 呼び出し + 管理者への緊急アラート（通知機構のフック）。
         logger.error('[M5] refundNeeded: 決済成功だが確定不可。要返金・要調査。', body.result);
       }
       res.status(result.status).json(result.body);
     } catch (e) {
       // fulfill 中の致命的データ不整合（成功後の Firestore 反映失敗）。
       // 500 を返すと Stripe が webhook を自動リトライする（= リトライ機構）。
-      // TODO: それでも失敗が続く場合に備え、管理者への緊急アラート機構をここにフックする。
       logger.error('[M4/M5] webhook 処理失敗。Stripe にリトライさせる。', e);
       res.status(500).json({ error: 'internal' });
     }

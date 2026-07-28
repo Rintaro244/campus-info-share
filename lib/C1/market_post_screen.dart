@@ -2,6 +2,7 @@
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MaxLengthEnforcement;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:student_information_1/payment/providers.dart';
@@ -24,6 +25,34 @@ class _MarketPostScreenState extends ConsumerState<MarketPostScreen> {
 
   Uint8List? _imageBytes; // 💡 画像データ保持
   bool _isUploading = false;
+
+  /// 文字数カウンタを組み立てる。MarketValidator は trim 後の長さで判定するため、
+  /// 表示も trim 後の値に合わせる（見た目が上限内なのに弾かれる、を防ぐ）。
+  /// controller を直接購読するので、画面全体を再 build せずに数字だけ更新される。
+  InputCounterWidgetBuilder _counterBuilder(TextEditingController controller) {
+    return (
+      BuildContext context, {
+      required int currentLength,
+      required bool isFocused,
+      required int? maxLength,
+    }) {
+      return ValueListenableBuilder<TextEditingValue>(
+        valueListenable: controller,
+        builder: (context, value, _) {
+          final length = value.text.trim().length;
+          final isOver = maxLength != null && length > maxLength;
+          return Text(
+            '$length / $maxLength',
+            style: TextStyle(
+              fontSize: 12,
+              color: isOver ? Theme.of(context).colorScheme.error : null,
+              fontWeight: isOver ? FontWeight.bold : null,
+            ),
+          );
+        },
+      );
+    };
+  }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -100,32 +129,64 @@ class _MarketPostScreenState extends ConsumerState<MarketPostScreen> {
         child: Column(
           children: [
             // 💡 画像選択エリアを追加
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                width: double.infinity,
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[400]!),
+            // 選択済みのときだけ右上に削除ボタンを重ねる（未選択に戻せるようにする）。
+            // タップ＝選び直しなので、ピッカーのキャンセルでは消さない（誤操作防止）。
+            Stack(
+              children: [
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    width: double.infinity,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[400]!),
+                    ),
+                    child: _imageBytes != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child:
+                                Image.memory(_imageBytes!, fit: BoxFit.contain),
+                          )
+                        : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_a_photo,
+                                  size: 50, color: Colors.grey),
+                              Text('商品の写真を追加',
+                                  style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                  ),
                 ),
-                child: _imageBytes != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.memory(_imageBytes!, fit: BoxFit.contain),
-                      )
-                    : const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_a_photo, size: 50, color: Colors.grey),
-                          Text('商品の写真を追加', style: TextStyle(color: Colors.grey)),
-                        ],
+                if (_imageBytes != null)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Material(
+                      color: Colors.black54,
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        tooltip: '画像を削除',
+                        onPressed: () => setState(() => _imageBytes = null),
                       ),
-              ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 16),
-            TextField(controller: _titleController, decoration: const InputDecoration(labelText: '商品名（教科書名など）')),
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(labelText: '商品名（教科書名など）'),
+              maxLength: MarketValidator.maxTitleLength,
+              // 上限を超えた入力を「止めない」。止めると境界値（41文字）の
+              // バリデーション動作を画面から確認できなくなるため。
+              maxLengthEnforcement: MaxLengthEnforcement.none,
+              buildCounter: _counterBuilder(_titleController),
+            ),
             TextField(controller: _priceController, decoration: const InputDecoration(labelText: '価格（半角数字）'), keyboardType: TextInputType.number),
             DropdownButtonFormField<String>(
               initialValue: _selectedCampus,
@@ -139,7 +200,14 @@ class _MarketPostScreenState extends ConsumerState<MarketPostScreen> {
               items: ['新品同様', '目立った傷や汚れなし', 'やや傷や汚れあり', '状態が悪い'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
               onChanged: (val) => setState(() => _selectedCondition = val!),
             ),
-            TextField(controller: _descController, decoration: const InputDecoration(labelText: '商品の詳細説明'), maxLines: 3),
+            TextField(
+              controller: _descController,
+              decoration: const InputDecoration(labelText: '商品の詳細説明'),
+              maxLines: 3,
+              maxLength: MarketValidator.maxDescriptionLength,
+              maxLengthEnforcement: MaxLengthEnforcement.none,
+              buildCounter: _counterBuilder(_descController),
+            ),
             const SizedBox(height: 32),
             _isUploading
                 ? const CircularProgressIndicator()

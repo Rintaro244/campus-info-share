@@ -97,8 +97,19 @@ class FlutterPaymentNavigator implements PaymentNavigator {
 
   @override
   void showError({required int code, required String message}) {
+    // コンソールにも必ず残す。SnackBar は表示時間が過ぎると消えるうえ、
+    // 見逃すと「何も起きなかった」と誤認されるため、テスト時の証跡を確保する。
+    debugPrint('C4 エラー: [$code] $message');
     messengerKey.currentState?.showSnackBar(
-      SnackBar(content: Text('[$code] $message')),
+      SnackBar(
+        content: Text('[$code] $message'),
+        // 画面最下部に置くと、Firebase Auth エミュレータが body に固定表示する
+        // 警告バナー（Running in emulator mode...）に隠れて見えない。
+        // 浮かせて下余白を取り、バナーの上に出す。
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 72),
+        duration: const Duration(seconds: 6),
+      ),
     );
   }
 }

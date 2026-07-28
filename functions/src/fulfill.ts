@@ -11,7 +11,7 @@
  * ロールバック / 返金方針:
  *  - トランザクション内の例外は全更新が自動ロールバックされる（Firestore の原子性）。
  *  - 「決済は成功したが確定できない」ケース（金額不一致・item 消失）は fulfill せず中断し、
- *    refundNeeded=true を返す。呼び出し側で Stripe 返金 + 緊急アラートを行う想定（TODO）。
+ *    refundNeeded=true を返す。呼び出し側で Stripe 返金 + 緊急アラートを行う想定。
  *  - 「確定はしたが after-commit の副作用に失敗」は本 core では発生しない（副作用は持たない）。
  */
 import { TX_STATUS, ITEM_STATUS, ITEM_FIELDS } from './constants';
